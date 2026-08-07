@@ -179,6 +179,9 @@
     margin-right: auto;
   }
   .path .var { color: var(--accent); }
+  /* The host repeats on all 39 endpoints, so it is dimmed and lighter — the
+     full URL stays copyable, but the eye still lands on the path. */
+  .path .host { color: var(--fg-faint); font-weight: 400; }
 
   .badge {
     font-size: 11px; padding: 2px 9px; border-radius: 999px;
@@ -290,7 +293,12 @@
 <!-- ============================================================ CONVENTIONS -->
 <section id="conventions">
   <h2>Conventions</h2>
-  <p class="lede">Everything below is relative to <code>/api/v1</code> unless stated otherwise.</p>
+  <p class="lede">Every endpoint below is written as its full hosted URL — copy and run it as-is.</p>
+
+  <p>All REST endpoints live under <code>https://pollhub-api.onrender.com/api/v1</code>. Two
+  exceptions sit outside it: <code>/health</code> at the host root, and the WebSocket at
+  <code>wss://pollhub-api.onrender.com/ws</code>. Running locally, swap the host for
+  <code>http://localhost:3000</code> — every path is otherwise identical.</p>
 
   <p>Requests and responses are JSON, <code>UTF-8</code>. The request body limit is <b>256 kb</b>.
   Every resource is keyed by a <code>UUID</code>; polls are additionally addressable by a short
@@ -420,7 +428,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m get">GET</span>
-      <code class="path">/health</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com</span>/health</code>
       <span class="badge">public</span>
     </div>
     <div class="ep-body">
@@ -446,7 +454,7 @@
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m post">POST</span><code class="path">/auth/signup</code>
+      <span class="m post">POST</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/auth/signup</code>
       <span class="badge">public</span>
     </div>
     <div class="ep-body">
@@ -474,7 +482,7 @@
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m post">POST</span><code class="path">/auth/login</code>
+      <span class="m post">POST</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/auth/login</code>
       <span class="badge">public</span>
     </div>
     <div class="ep-body">
@@ -496,7 +504,7 @@
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m post">POST</span><code class="path">/auth/logout</code>
+      <span class="m post">POST</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/auth/logout</code>
       <span class="badge">public</span>
     </div>
     <div class="ep-body">
@@ -507,7 +515,7 @@
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m get">GET</span><code class="path">/auth/me</code>
+      <span class="m get">GET</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/auth/me</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -519,7 +527,7 @@
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m post">POST</span><code class="path">/auth/verify-email</code>
+      <span class="m post">POST</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/auth/verify-email</code>
       <span class="badge">public</span>
     </div>
     <div class="ep-body">
@@ -533,7 +541,7 @@
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m post">POST</span><code class="path">/auth/password/request-reset</code>
+      <span class="m post">POST</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/auth/password/request-reset</code>
       <span class="badge">public</span>
     </div>
     <div class="ep-body">
@@ -552,7 +560,7 @@
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m post">POST</span><code class="path">/auth/password/reset</code>
+      <span class="m post">POST</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/auth/password/reset</code>
       <span class="badge">public</span>
     </div>
     <div class="ep-body">
@@ -568,7 +576,7 @@
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m get">GET</span><code class="path">/auth/google</code>
+      <span class="m get">GET</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/auth/google</code>
       <span class="badge">public</span>
     </div>
     <div class="ep-body">
@@ -581,7 +589,7 @@
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m get">GET</span><code class="path">/auth/google/callback</code>
+      <span class="m get">GET</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/auth/google/callback</code>
       <span class="badge">public</span>
     </div>
     <div class="ep-body">
@@ -601,7 +609,7 @@
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m get">GET</span><code class="path">/polls/public</code>
+      <span class="m get">GET</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/public</code>
       <span class="badge">public</span>
     </div>
     <div class="ep-body">
@@ -615,7 +623,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m get">GET</span>
-      <code class="path">/polls/slug/<span class="var">:slug</span></code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/slug/<span class="var">:slug</span></code>
       <span class="badge">optional</span>
     </div>
     <div class="ep-body">
@@ -640,7 +648,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m get">GET</span>
-      <code class="path">/polls/<span class="var">:id</span>/qr.svg</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:id</span>/qr.svg</code>
       <span class="badge">public</span>
     </div>
     <div class="ep-body">
@@ -651,7 +659,7 @@
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m post">POST</span><code class="path">/polls</code>
+      <span class="m post">POST</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -690,7 +698,7 @@
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m get">GET</span><code class="path">/polls</code>
+      <span class="m get">GET</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -702,7 +710,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m get">GET</span>
-      <code class="path">/polls/<span class="var">:id</span></code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:id</span></code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -715,7 +723,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m patch">PATCH</span>
-      <code class="path">/polls/<span class="var">:id</span></code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:id</span></code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -728,7 +736,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m post">POST</span>
-      <code class="path">/polls/<span class="var">:id</span>/publish</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:id</span>/publish</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -740,7 +748,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m post">POST</span>
-      <code class="path">/polls/<span class="var">:id</span>/close</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:id</span>/close</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -752,7 +760,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m post">POST</span>
-      <code class="path">/polls/<span class="var">:id</span>/archive</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:id</span>/archive</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -763,7 +771,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m post">POST</span>
-      <code class="path">/polls/<span class="var">:id</span>/duplicate</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:id</span>/duplicate</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -781,7 +789,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m get">GET</span>
-      <code class="path">/polls/<span class="var">:slug</span>/status</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:slug</span>/status</code>
       <span class="badge">optional</span>
     </div>
     <div class="ep-body">
@@ -796,7 +804,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m post">POST</span>
-      <code class="path">/polls/<span class="var">:slug</span>/responses</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:slug</span>/responses</code>
       <span class="badge">optional</span>
     </div>
     <div class="ep-body">
@@ -843,7 +851,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m post">POST</span>
-      <code class="path">/polls/<span class="var">:id</span>/invites</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:id</span>/invites</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -871,7 +879,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m get">GET</span>
-      <code class="path">/polls/<span class="var">:id</span>/invites</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:id</span>/invites</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -892,7 +900,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m get">GET</span>
-      <code class="path">/polls/<span class="var">:id</span>/analytics</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:id</span>/analytics</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -918,7 +926,7 @@
   <article class="ep">
     <div class="ep-head">
       <span class="m get">GET</span>
-      <code class="path">/polls/<span class="var">:id</span>/export.csv</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:id</span>/export.csv</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -933,7 +941,7 @@ uuid,2026-08-05T10:14:02.000Z,Ada,Yaba</pre>
   <article class="ep">
     <div class="ep-head">
       <span class="m get">GET</span>
-      <code class="path">/polls/<span class="var">:id</span>/questions/<span class="var">:questionId</span>/answers</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/polls/<span class="var">:id</span>/questions/<span class="var">:questionId</span>/answers</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -949,7 +957,7 @@ uuid,2026-08-05T10:14:02.000Z,Ada,Yaba</pre>
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m post">POST</span><code class="path">/uploads/sign</code>
+      <span class="m post">POST</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/uploads/sign</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -982,7 +990,7 @@ uuid,2026-08-05T10:14:02.000Z,Ada,Yaba</pre>
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m post">POST</span><code class="path">/notifications/tokens</code>
+      <span class="m post">POST</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/notifications/tokens</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -999,7 +1007,7 @@ uuid,2026-08-05T10:14:02.000Z,Ada,Yaba</pre>
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m delete">DELETE</span><code class="path">/notifications/tokens</code>
+      <span class="m delete">DELETE</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/notifications/tokens</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -1009,7 +1017,7 @@ uuid,2026-08-05T10:14:02.000Z,Ada,Yaba</pre>
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m get">GET</span><code class="path">/notifications/preferences</code>
+      <span class="m get">GET</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/notifications/preferences</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -1021,7 +1029,7 @@ uuid,2026-08-05T10:14:02.000Z,Ada,Yaba</pre>
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m put">PUT</span><code class="path">/notifications/preferences</code>
+      <span class="m put">PUT</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/notifications/preferences</code>
       <span class="badge creator">creator</span>
     </div>
     <div class="ep-body">
@@ -1039,7 +1047,7 @@ uuid,2026-08-05T10:14:02.000Z,Ada,Yaba</pre>
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m post">POST</span><code class="path">/moderation/reports</code>
+      <span class="m post">POST</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/moderation/reports</code>
       <span class="badge">optional</span>
     </div>
     <div class="ep-body">
@@ -1058,7 +1066,7 @@ uuid,2026-08-05T10:14:02.000Z,Ada,Yaba</pre>
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m get">GET</span><code class="path">/moderation/reports</code>
+      <span class="m get">GET</span><code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/moderation/reports</code>
       <span class="badge admin">admin</span>
     </div>
     <div class="ep-body">
@@ -1073,7 +1081,7 @@ uuid,2026-08-05T10:14:02.000Z,Ada,Yaba</pre>
   <article class="ep">
     <div class="ep-head">
       <span class="m post">POST</span>
-      <code class="path">/moderation/reports/<span class="var">:id</span>/uphold</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/moderation/reports/<span class="var">:id</span>/uphold</code>
       <span class="badge admin">admin</span>
     </div>
     <div class="ep-body">
@@ -1087,7 +1095,7 @@ uuid,2026-08-05T10:14:02.000Z,Ada,Yaba</pre>
   <article class="ep">
     <div class="ep-head">
       <span class="m post">POST</span>
-      <code class="path">/moderation/reports/<span class="var">:id</span>/dismiss</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/moderation/reports/<span class="var">:id</span>/dismiss</code>
       <span class="badge admin">admin</span>
     </div>
     <div class="ep-body">
@@ -1098,7 +1106,7 @@ uuid,2026-08-05T10:14:02.000Z,Ada,Yaba</pre>
   <article class="ep">
     <div class="ep-head">
       <span class="m post">POST</span>
-      <code class="path">/moderation/users/<span class="var">:id</span>/suspend</code>
+      <code class="path"><span class="host">https://pollhub-api.onrender.com/api/v1</span>/moderation/users/<span class="var">:id</span>/suspend</code>
       <span class="badge admin">admin</span>
     </div>
     <div class="ep-body">
@@ -1114,7 +1122,7 @@ uuid,2026-08-05T10:14:02.000Z,Ada,Yaba</pre>
 
   <article class="ep">
     <div class="ep-head">
-      <span class="m ws">WS</span><code class="path">/ws</code>
+      <span class="m ws">WS</span><code class="path"><span class="host">wss://pollhub-api.onrender.com</span>/ws</code>
       <span class="badge">public</span>
     </div>
     <div class="ep-body">
