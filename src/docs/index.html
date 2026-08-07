@@ -1,0 +1,1245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PollHub API — Reference</title>
+<meta name="description" content="PollHub API reference — voting and survey platform. Node.js, Express 5, PostgreSQL, ws.">
+<style>
+  :root {
+    --bg:        #ffffff;
+    --bg-soft:   #f6f7f9;
+    --bg-code:   #f2f4f7;
+    --fg:        #1a1d21;
+    --fg-muted:  #5b6472;
+    --fg-faint:  #8a93a2;
+    --line:      #e3e7ed;
+    --line-soft: #eef1f5;
+    --accent:    #4f46e5;
+    --get:       #0f7b4f;
+    --get-bg:    #e6f4ed;
+    --post:      #1d4ed8;
+    --post-bg:   #e6edfd;
+    --patch:     #a16207;
+    --patch-bg:  #fdf3e0;
+    --put:       #7c3aed;
+    --put-bg:    #f1eafe;
+    --del:       #be123c;
+    --del-bg:    #fdeaef;
+    --radius:    8px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:        #0f1115;
+      --bg-soft:   #161920;
+      --bg-code:   #171b22;
+      --fg:        #e6e9ef;
+      --fg-muted:  #9aa4b2;
+      --fg-faint:  #6b7482;
+      --line:      #262c36;
+      --line-soft: #1e232b;
+      --accent:    #818cf8;
+      --get:       #4ade80;
+      --get-bg:    #10291d;
+      --post:      #7dabff;
+      --post-bg:   #14203a;
+      --patch:     #fbbf24;
+      --patch-bg:  #2b2110;
+      --put:       #c4b5fd;
+      --put-bg:    #221a37;
+      --del:       #fb7185;
+      --del-bg:    #2e1319;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  code, pre { font-family: var(--mono); }
+
+  /* ---------------------------------------------------------------- header */
+  header.masthead {
+    border-bottom: 1px solid var(--line);
+    background: var(--bg-soft);
+    padding: 40px 24px 32px;
+  }
+  .masthead-inner { max-width: 1180px; margin: 0 auto; }
+  .masthead h1 {
+    margin: 0 0 6px;
+    font-size: 30px;
+    letter-spacing: -0.02em;
+    font-weight: 650;
+  }
+  .masthead .tagline { margin: 0 0 20px; color: var(--fg-muted); font-size: 15px; }
+  .masthead .tagline b { color: var(--fg); font-weight: 600; }
+
+  .baserow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .baseurl {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--bg); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 8px 14px;
+    font-family: var(--mono); font-size: 13px;
+  }
+  .baseurl .lbl {
+    font-family: var(--sans); font-size: 11px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--fg-faint); font-weight: 600;
+  }
+  .pill-link {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 6px 14px; font-size: 13px; color: var(--fg-muted);
+    background: var(--bg);
+  }
+  .pill-link:hover { color: var(--fg); border-color: var(--fg-faint); text-decoration: none; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--get); }
+
+  /* ------------------------------------------------------------------ grid */
+  .shell {
+    max-width: 1180px; margin: 0 auto; padding: 0 24px;
+    display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 48px;
+  }
+
+  nav.toc {
+    position: sticky; top: 0; align-self: start;
+    max-height: 100vh; overflow-y: auto;
+    padding: 32px 0 48px; font-size: 13.5px;
+  }
+  nav.toc h6 {
+    margin: 20px 0 8px; font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--fg-faint); font-weight: 700;
+  }
+  nav.toc h6:first-child { margin-top: 0; }
+  nav.toc a {
+    display: block; padding: 4px 10px; margin-left: -10px;
+    color: var(--fg-muted); border-radius: 6px;
+  }
+  nav.toc a:hover { background: var(--bg-soft); color: var(--fg); text-decoration: none; }
+
+  main { padding: 32px 0 96px; min-width: 0; }
+
+  section { scroll-margin-top: 16px; padding-bottom: 8px; }
+  section > h2 {
+    margin: 44px 0 6px; font-size: 21px; font-weight: 650;
+    letter-spacing: -0.01em; padding-top: 12px;
+    border-top: 1px solid var(--line-soft);
+  }
+  section:first-child > h2 { margin-top: 0; border-top: 0; padding-top: 0; }
+  section > .lede { margin: 0 0 20px; color: var(--fg-muted); }
+
+  h3 { font-size: 16px; margin: 28px 0 8px; font-weight: 620; }
+  h5 {
+    margin: 0 0 6px; font-size: 10.5px; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--fg-faint); font-weight: 700;
+  }
+
+  p { margin: 0 0 12px; }
+
+  /* -------------------------------------------------------------- endpoint */
+  .ep {
+    border: 1px solid var(--line); border-radius: var(--radius);
+    margin: 0 0 14px; overflow: hidden; background: var(--bg);
+  }
+  .ep-head {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    padding: 12px 16px; background: var(--bg-soft);
+    border-bottom: 1px solid var(--line);
+  }
+  .ep-body { padding: 14px 16px 16px; }
+  .ep-body > p:last-child { margin-bottom: 0; }
+
+  .m {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    letter-spacing: .04em; padding: 3px 8px; border-radius: 5px;
+    flex: none;
+  }
+  .m.get    { color: var(--get);   background: var(--get-bg); }
+  .m.post   { color: var(--post);  background: var(--post-bg); }
+  .m.patch  { color: var(--patch); background: var(--patch-bg); }
+  .m.put    { color: var(--put);   background: var(--put-bg); }
+  .m.delete { color: var(--del);   background: var(--del-bg); }
+  .m.ws     { color: var(--put);   background: var(--put-bg); }
+
+  .path {
+    font-size: 13.5px; font-weight: 550; word-break: break-all;
+    margin-right: auto;
+  }
+  .path .var { color: var(--accent); }
+
+  .badge {
+    font-size: 11px; padding: 2px 9px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--fg-muted);
+    background: var(--bg); white-space: nowrap;
+  }
+  .badge.admin   { color: var(--del);  border-color: var(--del); }
+  .badge.creator { color: var(--post); border-color: var(--post); }
+
+  /* ------------------------------------------------------------------ code */
+  pre {
+    margin: 0; padding: 12px 14px; overflow-x: auto;
+    background: var(--bg-code); border: 1px solid var(--line-soft);
+    border-radius: 6px; font-size: 12.5px; line-height: 1.55;
+  }
+  p code, td code, li code {
+    background: var(--bg-code); border: 1px solid var(--line-soft);
+    border-radius: 4px; padding: 1px 5px; font-size: 12.5px;
+  }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cols.one { grid-template-columns: 1fr; }
+
+  /* ----------------------------------------------------------------- table */
+  .tw { overflow-x: auto; margin: 0 0 16px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td {
+    text-align: left; padding: 8px 12px;
+    border-bottom: 1px solid var(--line-soft); vertical-align: top;
+  }
+  th {
+    font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--fg-faint); font-weight: 700; border-bottom: 1px solid var(--line);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+
+  .note {
+    border-left: 3px solid var(--accent); background: var(--bg-soft);
+    padding: 12px 16px; margin: 0 0 16px; border-radius: 0 6px 6px 0;
+    color: var(--fg-muted); font-size: 14px;
+  }
+  .note b { color: var(--fg); }
+
+  footer {
+    border-top: 1px solid var(--line); margin-top: 48px; padding: 28px 0 0;
+    color: var(--fg-faint); font-size: 13px;
+  }
+
+  @media (max-width: 900px) {
+    .shell { grid-template-columns: 1fr; gap: 0; padding: 0 18px; }
+    nav.toc {
+      position: static; max-height: none; padding: 24px 0;
+      border-bottom: 1px solid var(--line);
+      columns: 2; column-gap: 24px;
+    }
+    nav.toc h6 { break-after: avoid; }
+    .cols { grid-template-columns: 1fr; }
+    header.masthead { padding: 28px 18px 24px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <h1>PollHub API</h1>
+    <p class="tagline">
+      Voting &amp; Survey Platform — <b>Node.js</b> · <b>Express 5</b> · <b>PostgreSQL</b> · <b>ws</b>
+    </p>
+    <div class="baserow">
+      <span class="baseurl">
+        <span class="lbl">Base</span>https://pollhub-api.onrender.com/api/v1
+      </span>
+      <a class="pill-link" href="/health"><span class="dot"></span>Health check</a>
+      <a class="pill-link" href="/api/v1/polls/public">Try a public endpoint</a>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+
+<nav class="toc">
+  <h6>Getting started</h6>
+  <a href="#conventions">Conventions</a>
+  <a href="#auth-model">Authentication</a>
+  <a href="#errors">Errors</a>
+  <a href="#limits">Rate limits</a>
+  <a href="#health">Health</a>
+
+  <h6>Endpoints</h6>
+  <a href="#auth">Auth</a>
+  <a href="#polls">Polls</a>
+  <a href="#responses">Responses</a>
+  <a href="#invites">Invites</a>
+  <a href="#analytics">Analytics</a>
+  <a href="#uploads">Uploads</a>
+  <a href="#notifications">Notifications</a>
+  <a href="#moderation">Moderation</a>
+
+  <h6>Realtime</h6>
+  <a href="#websocket">WebSocket</a>
+
+  <h6>Reference</h6>
+  <a href="#enums">Enums</a>
+  <a href="#lifecycle">Poll lifecycle</a>
+</nav>
+
+<main>
+
+<!-- ============================================================ CONVENTIONS -->
+<section id="conventions">
+  <h2>Conventions</h2>
+  <p class="lede">Everything below is relative to <code>/api/v1</code> unless stated otherwise.</p>
+
+  <p>Requests and responses are JSON, <code>UTF-8</code>. The request body limit is <b>256 kb</b>.
+  Every resource is keyed by a <code>UUID</code>; polls are additionally addressable by a short
+  public <code>slug</code>, which is what appears in share links.</p>
+
+  <p>Successful responses are wrapped in a named key rather than returned bare — <code>{ "poll": … }</code>,
+  <code>{ "polls": [ … ] }</code> — so a response can grow extra top-level fields without breaking clients.</p>
+
+  <p>Timestamps are ISO-8601 in UTC. List endpoints take <code>limit</code> (1–100, default 20) and
+  <code>offset</code> (default 0).</p>
+</section>
+
+<!-- ============================================================= AUTH MODEL -->
+<section id="auth-model">
+  <h2>Authentication</h2>
+  <p class="lede">JWT, accepted two ways.</p>
+
+  <p>Sign-in endpoints return a token <em>and</em> set it as a signed, <code>httpOnly</code> cookie
+  named <code>ph_at</code>. Browser clients need nothing further — the cookie travels automatically.
+  Non-browser clients send the header:</p>
+
+  <pre>Authorization: Bearer &lt;token&gt;</pre>
+
+  <p>Access tokens live for <b>15 minutes</b>. Requests are authenticated in one of three modes:</p>
+
+  <div class="tw">
+  <table>
+    <thead><tr><th>Mode</th><th>Behaviour</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge">public</span></td><td>No token read. Open to anyone.</td></tr>
+      <tr><td><span class="badge">optional</span></td><td>A valid token is used if present; a missing or invalid one is <em>not</em> an error. Used on all respondent-facing routes.</td></tr>
+      <tr><td><span class="badge creator">creator</span></td><td>Valid token required, else <code>401</code>.</td></tr>
+      <tr><td><span class="badge admin">admin</span></td><td>Valid token <em>and</em> <code>role: "admin"</code>, else <code>403</code>.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <b>Respondent routes never hard-require a login.</b> Whether an account is needed is decided
+    per poll by its <code>identityMode</code>, not by the route. A public poll must not 401 someone
+    who simply isn't signed in.
+  </div>
+</section>
+
+<!-- ================================================================= ERRORS -->
+<section id="errors">
+  <h2>Errors</h2>
+  <p class="lede">One shape for every failure.</p>
+
+  <div class="cols">
+    <div>
+      <h5>Error envelope</h5>
+      <pre>{
+  "error": {
+    "code": "not_found",
+    "message": "Poll not found",
+    "details": null
+  }
+}</pre>
+    </div>
+    <div>
+      <h5>Validation failure (422)</h5>
+      <pre>{
+  "error": {
+    "code": "validation_failed",
+    "message": "Request validation failed",
+    "details": [
+      { "path": "questions.0.options",
+        "message": "single_choice questions need at least 2 options" }
+    ]
+  }
+}</pre>
+    </div>
+  </div>
+
+  <div class="tw" style="margin-top:16px">
+  <table>
+    <thead><tr><th>Status</th><th>Code</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>400</td><td><code>bad_request</code></td><td>Malformed or semantically invalid request.</td></tr>
+      <tr><td>400</td><td><code>invalid_json</code></td><td>Body was not parseable JSON.</td></tr>
+      <tr><td>401</td><td><code>unauthorized</code></td><td>Missing, invalid, or expired token.</td></tr>
+      <tr><td>403</td><td><code>forbidden</code></td><td>Authenticated, but not permitted — wrong role or not the owner.</td></tr>
+      <tr><td>404</td><td><code>not_found</code></td><td>No such resource. Also returned for draft polls fetched by slug, so drafts stay unguessable.</td></tr>
+      <tr><td>409</td><td><code>conflict</code></td><td>State collision — most often a duplicate response caught by dedup.</td></tr>
+      <tr><td>410</td><td><code>gone</code></td><td>Existed, no longer available. Archived polls.</td></tr>
+      <tr><td>422</td><td><code>validation_failed</code></td><td>Schema validation failed. <code>details</code> lists each offending path.</td></tr>
+      <tr><td>429</td><td><code>rate_limited</code></td><td>Limit exceeded. See <code>Retry-After</code>.</td></tr>
+      <tr><td>500</td><td><code>internal_error</code></td><td>Unhandled fault. Internals are never leaked in production.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============================================================ RATE LIMITS -->
+<section id="limits">
+  <h2>Rate limits</h2>
+  <p class="lede">Keyed on the resolved client IP. Two tiers.</p>
+
+  <div class="tw">
+  <table>
+    <thead><tr><th>Tier</th><th>Budget</th><th>Applies to</th></tr></thead>
+    <tbody>
+      <tr><td>auth</td><td>10 / min</td><td>Signup, login, verification, password reset, OAuth.</td></tr>
+      <tr><td>write</td><td>60 / min</td><td>Poll mutations, response submission, invites, notifications, moderation.</td></tr>
+      <tr><td>read</td><td>300 / min</td><td>All GET endpoints.</td></tr>
+      <tr><td>upload</td><td>20 / min</td><td>Upload signatures.</td></tr>
+      <tr><td>vote <em>(durable)</em></td><td>30 / hour<br>per poll per IP</td><td>Response submission. Backed by Postgres, so it survives a restart.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Every limited response carries <code>X-RateLimit-Remaining</code>. A <code>429</code> also
+  carries <code>Retry-After</code>, in seconds.</p>
+
+  <div class="note">
+    The first four tiers are <b>in-process</b>. They are global only because v1 runs as a single
+    Node process — the moment a second instance exists, only the durable vote tier still holds
+    across the fleet.
+  </div>
+</section>
+
+<!-- ================================================================= HEALTH -->
+<section id="health">
+  <h2>Health</h2>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span>
+      <code class="path">/health</code>
+      <span class="badge">public</span>
+    </div>
+    <div class="ep-body">
+      <p>Liveness plus a readout of which optional integrations are actually configured.
+      Not under <code>/api/v1</code>.</p>
+      <h5>Response 200</h5>
+      <pre>{
+  "ok": true,
+  "uptime": 1042.8,
+  "features": {
+    "googleOAuth": true,  "email": true,   "uploads": true,
+    "turnstile": false,   "pushMobile": true, "pushWeb": false
+  }
+}</pre>
+    </div>
+  </article>
+</section>
+
+<!-- =================================================================== AUTH -->
+<section id="auth">
+  <h2>Auth</h2>
+  <p class="lede">Accounts, sessions, and Google sign-in.</p>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span><code class="path">/auth/signup</code>
+      <span class="badge">public</span>
+    </div>
+    <div class="ep-body">
+      <p>Creates a creator account and signs it in immediately. A verification email is sent, but
+      the account is usable before it is confirmed.</p>
+      <div class="cols">
+        <div><h5>Request</h5><pre>{
+  "email": "ada@example.com",
+  "password": "at-least-8-chars",
+  "name": "Ada Lovelace"
+}</pre></div>
+        <div><h5>Response 201</h5><pre>{
+  "user": {
+    "id": "uuid", "email": "ada@example.com",
+    "name": "Ada Lovelace", "role": "creator",
+    "verified": false
+  },
+  "token": "eyJhbGciOi…"
+}</pre></div>
+      </div>
+      <p style="margin-top:12px"><b>Errors</b> — <code>409</code> email already registered ·
+      <code>422</code> validation.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span><code class="path">/auth/login</code>
+      <span class="badge">public</span>
+    </div>
+    <div class="ep-body">
+      <p>Exchanges credentials for a token and sets the <code>ph_at</code> cookie.</p>
+      <div class="cols">
+        <div><h5>Request</h5><pre>{
+  "email": "ada@example.com",
+  "password": "…"
+}</pre></div>
+        <div><h5>Response 200</h5><pre>{
+  "user": { … },
+  "token": "eyJhbGciOi…"
+}</pre></div>
+      </div>
+      <p style="margin-top:12px"><b>Errors</b> — <code>401</code> bad credentials ·
+      <code>403</code> account suspended.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span><code class="path">/auth/logout</code>
+      <span class="badge">public</span>
+    </div>
+    <div class="ep-body">
+      <p>Clears the auth cookie. Returns <code>204</code>. Safe to call unauthenticated — a
+      bearer token held by the client must be discarded client-side.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span><code class="path">/auth/me</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>The signed-in user.</p>
+      <h5>Response 200</h5>
+      <pre>{ "user": { "id": "uuid", "email": "…", "name": "…", "role": "creator", "verified": true } }</pre>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span><code class="path">/auth/verify-email</code>
+      <span class="badge">public</span>
+    </div>
+    <div class="ep-body">
+      <p>Confirms an address using the token from the verification email.</p>
+      <div class="cols">
+        <div><h5>Request</h5><pre>{ "token": "…" }</pre></div>
+        <div><h5>Response 200</h5><pre>{ "user": { …, "verified": true } }</pre></div>
+      </div>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span><code class="path">/auth/password/request-reset</code>
+      <span class="badge">public</span>
+    </div>
+    <div class="ep-body">
+      <p>Starts a password reset.</p>
+      <div class="cols">
+        <div><h5>Request</h5><pre>{ "email": "ada@example.com" }</pre></div>
+        <div><h5>Response 202</h5><pre>{
+  "message": "If that address has an account,
+              a reset link is on its way"
+}</pre></div>
+      </div>
+      <p style="margin-top:12px">The response is identical whether or not the address exists —
+      this endpoint is not an account-enumeration oracle.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span><code class="path">/auth/password/reset</code>
+      <span class="badge">public</span>
+    </div>
+    <div class="ep-body">
+      <div class="cols">
+        <div><h5>Request</h5><pre>{
+  "token": "…",
+  "password": "at-least-8-chars"
+}</pre></div>
+        <div><h5>Response 200</h5><pre>{ "user": { … } }</pre></div>
+      </div>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span><code class="path">/auth/google</code>
+      <span class="badge">public</span>
+    </div>
+    <div class="ep-body">
+      <p><code>302</code> to Google's consent screen. Sets a signed state cookie the callback
+      checks, which is what makes the flow CSRF-resistant. Navigate the browser here — this is
+      not an XHR endpoint.</p>
+      <p><code>400</code> if Google sign-in is not configured on this deployment.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span><code class="path">/auth/google/callback</code>
+      <span class="badge">public</span>
+    </div>
+    <div class="ep-body">
+      <p>Google redirects here with <code>?code=&amp;state=</code>. Exchanges the code server-side,
+      then creates or links the account by <code>sub</code>, falling back to email. Google-verified
+      addresses skip email verification entirely.</p>
+      <h5>Response 200</h5>
+      <pre>{ "user": { … }, "token": "eyJhbGciOi…" }</pre>
+    </div>
+  </article>
+</section>
+
+<!-- ================================================================== POLLS -->
+<section id="polls">
+  <h2>Polls</h2>
+  <p class="lede">A poll is either a <b>Quick Vote</b> (exactly one question) or a <b>Survey</b> (up to 50).</p>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span><code class="path">/polls/public</code>
+      <span class="badge">public</span>
+    </div>
+    <div class="ep-body">
+      <p>Published polls with <code>visibility: "public"</code>. Query: <code>limit</code>,
+      <code>offset</code>.</p>
+      <h5>Response 200</h5>
+      <pre>{ "polls": [ { "id": "uuid", "type": "vote", "title": "…", "slug": "a1b2c3", "status": "published", … } ] }</pre>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span>
+      <code class="path">/polls/slug/<span class="var">:slug</span></code>
+      <span class="badge">optional</span>
+    </div>
+    <div class="ep-body">
+      <p>The respondent view — the endpoint the public poll page is built on. Option counts are
+      omitted unless this viewer is allowed to see results, decided by the poll's
+      <code>resultsMode</code>.</p>
+      <h5>Response 200</h5>
+      <pre>{
+  "poll": { "id": "uuid", "title": "…", "type": "vote", "identityMode": "anonymous", … },
+  "questions": [
+    { "id": "uuid", "position": 0, "type": "single_choice", "prompt": "…", "required": true,
+      "options": [ { "id": "uuid", "label": "Yaba", "count": 12 } ] }
+  ],
+  "state": { "notYetOpen": false, "isClosed": false, "acceptingResponses": true },
+  "resultsVisible": true
+}</pre>
+      <p style="margin-top:12px"><b>Errors</b> — <code>404</code> unknown slug, or the poll is a
+      draft · <code>410</code> archived.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span>
+      <code class="path">/polls/<span class="var">:id</span>/qr.svg</code>
+      <span class="badge">public</span>
+    </div>
+    <div class="ep-body">
+      <p>QR code for the poll's share link, as <code>image/svg+xml</code>. Cached for 24 hours.
+      Embed it directly with <code>&lt;img src="…/qr.svg"&gt;</code>.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span><code class="path">/polls</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Creates a poll with its questions and options in one transaction. Created as
+      <code>draft</code> — it accepts no responses until published.</p>
+      <div class="cols one">
+        <div><h5>Request</h5><pre>{
+  "type": "vote",
+  "title": "Where should we host the meetup?",
+  "description": "Pick one venue.",
+  "visibility": "unlisted",        // public | unlisted | private
+  "identityMode": "anonymous",     // anonymous | name_required | account_required
+  "dedupMode": "cookie_device",    // none | cookie_device | ip | account | invite_code
+  "resultsMode": "after_vote",     // live | after_vote | after_close | creator_only
+  "coverPublicId": "pollhub/cover/xyz",
+  "opensAt": "2026-08-10T09:00:00Z",
+  "closesAt": "2026-08-17T09:00:00Z",
+  "questions": [
+    {
+      "type": "single_choice",
+      "prompt": "Where should we host the meetup?",
+      "required": true,
+      "options": [ { "label": "Yaba" }, { "label": "Lekki" }, { "label": "Ikeja" } ]
+    }
+  ]
+}</pre></div>
+      </div>
+      <h5 style="margin-top:12px">Response 201</h5>
+      <pre>{ "poll": { "id": "uuid", "slug": "a1b2c3", "status": "draft", … } }</pre>
+      <p style="margin-top:12px"><b>Rules enforced at validation</b> — a <code>vote</code> takes
+      exactly one question · choice questions need ≥ 2 options · non-choice questions must have none ·
+      <code>closesAt</code> must be after <code>opensAt</code> · <code>account_required</code> may
+      not pair with <code>dedupMode: "none"</code>.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span><code class="path">/polls</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Your own polls. Query: <code>status</code>, <code>limit</code>, <code>offset</code>.</p>
+      <pre>{ "polls": [ … ] }</pre>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span>
+      <code class="path">/polls/<span class="var">:id</span></code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Full poll with questions and options, owner fields included. <code>403</code> if you
+      don't own it.</p>
+      <pre>{ "poll": { … }, "questions": [ … ] }</pre>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m patch">PATCH</span>
+      <code class="path">/polls/<span class="var">:id</span></code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Settings only — every field optional. Question edits are not part of this endpoint.
+      Nullable fields accept <code>null</code> to clear them.</p>
+      <pre>{ "title": "…", "visibility": "public", "resultsMode": "live", "closesAt": null }</pre>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span>
+      <code class="path">/polls/<span class="var">:id</span>/publish</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p><code>draft → published</code>. Stamps <code>publishedAt</code> and opens the poll to
+      responses.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span>
+      <code class="path">/polls/<span class="var">:id</span>/close</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p><code>published → closed</code>. Stops accepting responses; results stay readable. A poll
+      with <code>closesAt</code> in the past is closed automatically by the scheduler.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span>
+      <code class="path">/polls/<span class="var">:id</span>/archive</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Hides the poll. Fetching it by slug then returns <code>410</code>.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span>
+      <code class="path">/polls/<span class="var">:id</span>/duplicate</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Copies structure and settings into a fresh draft with a new slug. Responses and tallies
+      are not copied. <code>201</code>.</p>
+    </div>
+  </article>
+</section>
+
+<!-- ============================================================== RESPONSES -->
+<section id="responses">
+  <h2>Responses</h2>
+  <p class="lede">Vote submission and the pre-flight check that precedes it.</p>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span>
+      <code class="path">/polls/<span class="var">:slug</span>/status</code>
+      <span class="badge">optional</span>
+    </div>
+    <div class="ep-body">
+      <p>Whether this caller has already responded, evaluated under the poll's own dedup mode.
+      Call it before rendering the form so a repeat visitor sees results instead of a ballot they
+      can't submit.</p>
+      <h5>Response 200</h5>
+      <pre>{ "hasResponded": false, "dedupMode": "cookie_device" }</pre>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span>
+      <code class="path">/polls/<span class="var">:slug</span>/responses</code>
+      <span class="badge">optional</span>
+    </div>
+    <div class="ep-body">
+      <p>Submits a response. Answers, dedup, and tally updates commit in one transaction — a
+      counted vote is always a stored vote.</p>
+      <div class="cols one">
+        <div><h5>Request</h5><pre>{
+  "answers": [
+    { "questionId": "uuid", "optionIds": ["uuid"] },        // choice
+    { "questionId": "uuid", "valueText": "Great venue" },   // short_text / long_text
+    { "questionId": "uuid", "valueNum": 4 }                 // rating
+  ],
+  "respondentName": "Ada",      // required when identityMode = name_required
+  "inviteCode": "K3F9-2QMX",    // required when dedupMode = invite_code
+  "turnstileToken": "…",        // when Turnstile is configured
+  "fingerprint": "…"            // optional device signal
+}</pre></div>
+      </div>
+      <h5 style="margin-top:12px">Response 201</h5>
+      <pre>{
+  "responseId": "uuid",
+  "responseCount": 43,
+  "resultsVisible": true,
+  "tallies": { "&lt;optionId&gt;": 12, "&lt;optionId&gt;": 31 }   // omitted when not visible
+}</pre>
+      <p style="margin-top:12px"><b>Errors</b> — <code>401</code> poll requires an account ·
+      <code>403</code> bad or spent invite code · <code>409</code> already responded ·
+      <code>410</code> poll closed or not yet open · <code>422</code> answers don't match the
+      questions · <code>429</code> vote limit.</p>
+      <div class="note" style="margin-top:14px">
+        <b>Dedup is server-side.</b> The device id lives in a <em>signed</em> cookie
+        (<code>ph_did</code>), so it can't be edited to mint a fresh identity per vote, and raw IPs
+        are never stored — only a peppered HMAC.
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ================================================================ INVITES -->
+<section id="invites">
+  <h2>Invites</h2>
+  <p class="lede">One-time codes for polls gated by <code>dedupMode: "invite_code"</code>.</p>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span>
+      <code class="path">/polls/<span class="var">:id</span>/invites</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Issues codes. Pass <code>emails</code> to generate one per address and mail it out, or
+      <code>count</code> to generate unassigned codes you distribute yourself. Default 10, max 500.</p>
+      <div class="cols">
+        <div><h5>Request</h5><pre>{ "count": 50 }
+
+// or
+{ "emails": ["a@x.com", "b@x.com"] }</pre></div>
+        <div><h5>Response 201</h5><pre>{
+  "codes": [
+    { "code": "K3F9-2QMX", "email": "a@x.com" },
+    { "code": "P7RT-4WQZ", "email": null }
+  ]
+}</pre></div>
+      </div>
+      <div class="note" style="margin-top:14px">
+        <b>Codes are returned in plaintext exactly once — here.</b> Only their hash is stored, so a
+        database leak doesn't hand out working ballots. If you lose them, reissue.
+      </div>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span>
+      <code class="path">/polls/<span class="var">:id</span>/invites</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Issued codes with redemption state, plus totals. Codes themselves are <em>not</em> returned.</p>
+      <pre>{
+  "invites": [ { "id": "uuid", "email": "a@x.com", "usedAt": "2026-08-05T…", "createdAt": "…" } ],
+  "stats":   { "issued": 50, "used": 31 }
+}</pre>
+    </div>
+  </article>
+</section>
+
+<!-- ============================================================== ANALYTICS -->
+<section id="analytics">
+  <h2>Analytics</h2>
+  <p class="lede">Owner-only. Every endpoint 403s for anyone but the poll's owner.</p>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span>
+      <code class="path">/polls/<span class="var">:id</span>/analytics</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Summary, response volume over time, per-question drop-off, and the option breakdown.</p>
+      <h5>Response 200</h5>
+      <pre>{
+  "summary": { "responses": 431, "completionRate": 82.4, … },
+  "responsesOverTime": [ { "bucket": "2026-08-05T10:00:00Z", "count": 24 } ],
+  "questions": [
+    { "id": "uuid", "position": 0, "prompt": "…", "type": "single_choice",
+      "answered": 431, "dropOffPct": 0 },
+    { "id": "uuid", "position": 1, "prompt": "…", "type": "rating",
+      "answered": 355, "dropOffPct": 17.6 }
+  ],
+  "options": [ { "questionId": "uuid", "optionId": "uuid", "label": "Yaba", "count": 180 } ]
+}</pre>
+      <p style="margin-top:12px"><code>dropOffPct</code> is measured against the first question —
+      the one everyone who started the survey saw. <code>completionRate</code> is the last question's
+      answered count over the first's.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span>
+      <code class="path">/polls/<span class="var">:id</span>/export.csv</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Every response as CSV — one row per response, one column per question. Multi-choice answers
+      are joined with <code>;</code> in a single cell. Returns
+      <code>text/csv</code> as an attachment named <code>poll-&lt;slug&gt;.csv</code>.</p>
+      <pre>response_id,submitted_at,respondent_name,Where should we host the meetup?
+uuid,2026-08-05T10:14:02.000Z,Ada,Yaba</pre>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span>
+      <code class="path">/polls/<span class="var">:id</span>/questions/<span class="var">:questionId</span>/answers</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Free-text answers for one question — the open-ended replies that can't be charted.</p>
+      <pre>{ "answers": [ { "responseId": "uuid", "valueText": "Great venue", "submittedAt": "…" } ] }</pre>
+    </div>
+  </article>
+</section>
+
+<!-- ================================================================ UPLOADS -->
+<section id="uploads">
+  <h2>Uploads</h2>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span><code class="path">/uploads/sign</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Mints a short-lived Cloudinary upload signature. The client then uploads
+      <em>directly</em> to Cloudinary — image bytes never pass through this server. Send the
+      returned <code>publicId</code> back as <code>coverPublicId</code> or an option's
+      <code>imagePublicId</code>.</p>
+      <div class="cols">
+        <div><h5>Request</h5><pre>{ "kind": "cover" }
+// option | cover | avatar</pre></div>
+        <div><h5>Response 200</h5><pre>{
+  "upload": {
+    "cloudName": "…", "apiKey": "…",
+    "folder": "pollhub/cover",
+    "timestamp": 1754563200,
+    "signature": "…"
+  }
+}</pre></div>
+      </div>
+      <p style="margin-top:12px">Auth is required so anonymous respondents can't burn the
+      Cloudinary credit pool. Rate limited to 20/min.</p>
+    </div>
+  </article>
+</section>
+
+<!-- ========================================================== NOTIFICATIONS -->
+<section id="notifications">
+  <h2>Notifications</h2>
+  <p class="lede">Push device registration and per-event delivery preferences.</p>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span><code class="path">/notifications/tokens</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <div class="cols">
+        <div><h5>Request</h5><pre>{
+  "token": "ExponentPushToken[…]",
+  "provider": "expo",   // expo | fcm_web
+  "platform": "ios"     // ios | android | web
+}</pre></div>
+        <div><h5>Response 201</h5><pre>{ "token": { "id": "uuid", "platform": "ios" } }</pre></div>
+      </div>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m delete">DELETE</span><code class="path">/notifications/tokens</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Revokes a device token. Body: <code>{ "token": "…" }</code>. Returns <code>204</code>.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span><code class="path">/notifications/preferences</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <pre>{ "preferences": [
+  { "eventType": "poll_closing", "email": true, "pushMobile": true, "pushWeb": false }
+] }</pre>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m put">PUT</span><code class="path">/notifications/preferences</code>
+      <span class="badge creator">creator</span>
+    </div>
+    <div class="ep-body">
+      <p>Sets the three channels for one event type. Events:
+      <code>poll_closing</code>, <code>response_milestone</code>, <code>results_ready</code>.</p>
+      <pre>{ "eventType": "poll_closing", "email": true, "pushMobile": true, "pushWeb": false }</pre>
+    </div>
+  </article>
+</section>
+
+<!-- ============================================================= MODERATION -->
+<section id="moderation">
+  <h2>Moderation</h2>
+  <p class="lede">Reporting is open to everyone; the queue is admin-only.</p>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span><code class="path">/moderation/reports</code>
+      <span class="badge">optional</span>
+    </div>
+    <div class="ep-body">
+      <p>Flags a poll. Deliberately open to unauthenticated callers — a respondent who hits an
+      abusive poll from a shared link has no account and must still be able to report it. The
+      reporter is recorded when signed in, <code>null</code> otherwise.</p>
+      <div class="cols">
+        <div><h5>Request</h5><pre>{
+  "pollId": "uuid",
+  "reason": "Spam / abusive content"
+}</pre></div>
+        <div><h5>Response 201</h5><pre>{ "report": { "id": "uuid", "created_at": "…" } }</pre></div>
+      </div>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m get">GET</span><code class="path">/moderation/reports</code>
+      <span class="badge admin">admin</span>
+    </div>
+    <div class="ep-body">
+      <p>The open queue, oldest first, capped at 100.</p>
+      <pre>{ "reports": [
+  { "id": "uuid", "reason": "…", "status": "open", "created_at": "…",
+    "poll_id": "uuid", "title": "…", "slug": "a1b2c3", "poll_status": "published" }
+] }</pre>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span>
+      <code class="path">/moderation/reports/<span class="var">:id</span>/uphold</code>
+      <span class="badge admin">admin</span>
+    </div>
+    <div class="ep-body">
+      <p>Upholds the report: archives the poll and evicts its tally mirror, so live results stop
+      broadcasting immediately.</p>
+      <pre>{ "ok": true, "pollId": "uuid" }</pre>
+      <p style="margin-top:12px"><code>404</code> if the report doesn't exist or was already resolved.</p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span>
+      <code class="path">/moderation/reports/<span class="var">:id</span>/dismiss</code>
+      <span class="badge admin">admin</span>
+    </div>
+    <div class="ep-body">
+      <p>Closes the report without touching the poll. <code>{ "ok": true }</code></p>
+    </div>
+  </article>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m post">POST</span>
+      <code class="path">/moderation/users/<span class="var">:id</span>/suspend</code>
+      <span class="badge admin">admin</span>
+    </div>
+    <div class="ep-body">
+      <p>Suspends a user. They can no longer sign in. <code>{ "ok": true }</code></p>
+    </div>
+  </article>
+</section>
+
+<!-- ============================================================== WEBSOCKET -->
+<section id="websocket">
+  <h2>WebSocket — live results</h2>
+  <p class="lede">Same host, same port as the REST API.</p>
+
+  <article class="ep">
+    <div class="ep-head">
+      <span class="m ws">WS</span><code class="path">/ws</code>
+      <span class="badge">public</span>
+    </div>
+    <div class="ep-body">
+      <pre>wss://pollhub-api.onrender.com/ws</pre>
+      <p style="margin-top:12px">Connect, then subscribe to a poll. You'll get a snapshot
+      immediately, then a delta on every counted vote.</p>
+
+      <div class="cols">
+        <div>
+          <h5>Client → server</h5>
+          <pre>{ "type": "subscribe", "pollId": "uuid" }
+{ "type": "ping" }</pre>
+        </div>
+        <div>
+          <h5>Server → client</h5>
+          <pre>{ "type": "snapshot", "pollId": "uuid",
+  "tallies": { "&lt;optionId&gt;": 12 } }
+
+{ "type": "tally", "pollId": "uuid",
+  "tallies": { "&lt;optionId&gt;": 13 } }
+
+{ "type": "status", "pollId": "uuid",
+  "status": "closed" }
+
+{ "type": "pong" }
+{ "type": "error", "message": "…" }</pre>
+        </div>
+      </div>
+
+      <p style="margin-top:14px"><b>Subscription is refused</b> when <code>resultsMode</code> is
+      <code>creator_only</code>, or when it is <code>after_close</code> and the poll is still open.
+      That check runs here as well as in the REST layer — otherwise a creator-only poll would leak
+      its live tally over the socket.</p>
+
+      <p>The server pings every 30 seconds and terminates sockets that stop answering. Clients
+      should reconnect with backoff and re-subscribe; the snapshot on subscribe means no state is
+      lost across a reconnect.</p>
+    </div>
+  </article>
+</section>
+
+<!-- ================================================================== ENUMS -->
+<section id="enums">
+  <h2>Enums</h2>
+
+  <div class="tw">
+  <table>
+    <thead><tr><th>Field</th><th>Values</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>type</code></td>
+        <td><code>vote</code> · <code>survey</code></td>
+        <td>A vote has exactly one question.</td>
+      </tr>
+      <tr>
+        <td><code>status</code></td>
+        <td><code>draft</code> · <code>published</code> · <code>closed</code> · <code>archived</code></td>
+        <td>See lifecycle below.</td>
+      </tr>
+      <tr>
+        <td><code>visibility</code></td>
+        <td><code>public</code> · <code>unlisted</code> · <code>private</code></td>
+        <td>Only <code>public</code> appears in <code>/polls/public</code>. Unlisted is reachable by link.</td>
+      </tr>
+      <tr>
+        <td><code>identityMode</code></td>
+        <td><code>anonymous</code> · <code>name_required</code> · <code>account_required</code></td>
+        <td>Decides whether the respondent must name themselves or sign in.</td>
+      </tr>
+      <tr>
+        <td><code>dedupMode</code></td>
+        <td><code>none</code> · <code>cookie_device</code> · <code>ip</code> · <code>account</code> · <code>invite_code</code></td>
+        <td>How a repeat response is detected. <code>cookie_device</code> is the default.</td>
+      </tr>
+      <tr>
+        <td><code>resultsMode</code></td>
+        <td><code>live</code> · <code>after_vote</code> · <code>after_close</code> · <code>creator_only</code></td>
+        <td>Enforced in both the REST and WebSocket layers.</td>
+      </tr>
+      <tr>
+        <td><code>question.type</code></td>
+        <td><code>single_choice</code> · <code>multi_choice</code> · <code>yes_no</code> · <code>ranking</code> · <code>rating</code> · <code>short_text</code> · <code>long_text</code></td>
+        <td>The first four are choice types and require options; the rest must have none.</td>
+      </tr>
+      <tr>
+        <td><code>role</code></td>
+        <td><code>creator</code> · <code>admin</code></td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============================================================== LIFECYCLE -->
+<section id="lifecycle">
+  <h2>Poll lifecycle</h2>
+
+  <pre>draft ──publish──&gt; published ──close──&gt; closed
+  │                    │                  │
+  └──────────────── archive ──────────────┘  →  archived (410 to respondents)</pre>
+
+  <div class="tw" style="margin-top:16px">
+  <table>
+    <thead><tr><th>Status</th><th>Accepts responses</th><th>Public by slug</th></tr></thead>
+    <tbody>
+      <tr><td><code>draft</code></td><td>No</td><td>No — returns <code>404</code>, so drafts stay unguessable</td></tr>
+      <tr><td><code>published</code></td><td>Yes, within the open window</td><td>Yes</td></tr>
+      <tr><td><code>closed</code></td><td>No</td><td>Yes, results readable</td></tr>
+      <tr><td><code>archived</code></td><td>No</td><td>No — returns <code>410</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>A poll with <code>opensAt</code> in the future reports
+  <code>state.notYetOpen</code> and rejects responses. One with <code>closesAt</code> in the past
+  is closed by the background scheduler without needing an explicit call.</p>
+
+  <footer>
+    PollHub API · Express 5 · PostgreSQL · ws, by design.
+    <br>Postgres is the single source of truth: dedup, tallies, and rate limits all live there.
+  </footer>
+</section>
+
+</main>
+</div>
+</body>
+</html>

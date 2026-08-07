@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -17,6 +18,8 @@ import { uploadRoutes } from './modules/uploads/uploads.routes.js';
 import { notificationRoutes } from './modules/notifications/notifications.routes.js';
 import { moderationRoutes } from './modules/moderation/moderation.routes.js';
 
+const DOCS_PAGE = fileURLToPath(new URL('./docs/index.html', import.meta.url));
+
 export function createApp() {
   const app = express();
 
@@ -34,6 +37,14 @@ export function createApp() {
 
   app.get('/health', (_req, res) => {
     res.json({ ok: true, uptime: process.uptime(), features });
+  });
+
+  // Human-readable API reference at the root. Hitting the bare hostname is the
+  // first thing anyone does with a deployed API, and a 404 there teaches them
+  // nothing. Static HTML with no inline script, so helmet's default CSP
+  // (script-src 'self') serves it untouched.
+  app.get('/', (_req, res) => {
+    res.sendFile(DOCS_PAGE);
   });
 
   const api = express.Router();
