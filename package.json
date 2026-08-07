@@ -1,0 +1,33 @@
+{
+  "name": "pollhub-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PollHub — voting & survey platform API. Express 5 + PostgreSQL + ws. No Redis, no Docker.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "migrate": "node src/db/migrate.js up",
+    "migrate:status": "node src/db/migrate.js status",
+    "seed": "node src/db/seed.js",
+    "seed:admin": "node src/db/seed-admin.js",
+    "test": "node --test tests/"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.0.1",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "node-cron": "^3.0.3",
+    "pg": "^8.13.1",
+    "qrcode": "^1.5.4",
+    "rate-limiter-flexible": "^5.0.4",
+    "ws": "^8.18.0",
+    "zod": "^3.24.1"
+  }
+}
