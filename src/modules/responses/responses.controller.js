@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { isProd } from '../../config/env.js';
+import { crossSiteCookie } from '../../config/env.js';
 import { DEDUP_COOKIE, DEDUP_COOKIE_MAX_AGE_MS } from '../../config/constants.js';
 import * as service from './responses.service.js';
 import * as pollRepo from '../polls/polls.repository.js';
@@ -11,6 +11,12 @@ import { notFound } from '../../lib/errors.js';
  *
  * Signed because the default dedup mode trusts this value: an unsigned cookie
  * is a field the voter edits to mint a new identity per vote.
+ *
+ * `crossSiteCookie` rather than a plain `sameSite: 'lax'`: in production the
+ * client is a separate origin, and a lax cookie is not sent on a cross-site
+ * fetch. The cookie would never come back, this function would mint a fresh id
+ * on every submission, and `cookie_device` dedup would quietly recognise
+ * nobody — no error, just results that stopped being deduplicated.
  */
 function deviceId(req, res) {
   const existing = req.signedCookies?.[DEDUP_COOKIE];
@@ -20,8 +26,7 @@ function deviceId(req, res) {
   res.cookie(DEDUP_COOKIE, fresh, {
     httpOnly: true,
     signed: true,
-    sameSite: 'lax',
-    secure: isProd,
+    ...crossSiteCookie,
     maxAge: DEDUP_COOKIE_MAX_AGE_MS,
     path: '/',
   });

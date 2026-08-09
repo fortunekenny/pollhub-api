@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
-import { env, features } from './config/env.js';
+import { env, features, clientOrigins } from './config/env.js';
 import { trustProxyValue } from './config/trust-proxy.js';
 import { clientIp } from './middleware/client-ip.js';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
@@ -30,7 +30,11 @@ export function createApp() {
   app.disable('x-powered-by');
 
   app.use(helmet());
-  app.use(cors({ origin: true, credentials: true }));
+  // An allowlist once CLIENT_ORIGIN is set, which env.js requires in
+  // production. Reflecting every origin while sending credentials is only
+  // survivable because `lax` keeps the auth cookie at home; the device-id
+  // cookie no longer stays home, so the origin has to be pinned instead.
+  app.use(cors({ origin: clientOrigins.length > 0 ? clientOrigins : true, credentials: true }));
   app.use(express.json({ limit: '256kb' }));
   app.use(cookieParser(env.COOKIE_SECRET));
   app.use(clientIp);
