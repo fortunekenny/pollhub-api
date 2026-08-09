@@ -11,6 +11,11 @@ const schema = z.object({
   APP_URL: z.string().url().default('http://localhost:3000'),
   PUBLIC_POLL_BASE_URL: z.string().url().default('http://localhost:3000/p'),
 
+  // Comma-separated browser origins allowed to send credentialed requests.
+  // Blank reflects whatever origin asks, which is only safe while no cookie
+  // crosses sites — see the production check below.
+  CLIENT_ORIGIN: z.string().default(''),
+
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   DATABASE_SSL: bool.default('false'),
 
@@ -39,6 +44,20 @@ const schema = z.object({
   FCM_PROJECT_ID: z.string().default(''),
   FCM_CLIENT_EMAIL: z.string().default(''),
   FCM_PRIVATE_KEY: z.string().default(''),
+}).superRefine((cfg, ctx) => {
+  // In production the client is served from its own origin, so the device-id
+  // cookie has to be SameSite=None to survive the trip. That makes it a cookie
+  // any site can cause the browser to attach — and a credentialed CORS policy
+  // that reflects every origin would then let any page drive a request with it.
+  // Pinning the origin is what closes that, so it is not optional here.
+  if (cfg.NODE_ENV === 'production' && !cfg.CLIENT_ORIGIN.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['CLIENT_ORIGIN'],
+      message:
+        'required in production — set it to the client origin, e.g. https://pollhub-client.onrender.com',
+    });
+  }
 });
 
 const parsed = schema.safeParse(process.env);
@@ -57,6 +76,23 @@ export const env = parsed.data;
 
 export const isProd = env.NODE_ENV === 'production';
 export const isTest = env.NODE_ENV === 'test';
+
+/** Allowed browser origins. Empty means reflect the caller (development). */
+export const clientOrigins = env.CLIENT_ORIGIN.split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+/**
+ * Cross-site cookies.
+ *
+ * Dev serves the client through Vite's proxy, so browser and API share an
+ * origin and `lax` holds. Production splits them, and a `lax` cookie is not
+ * sent on a cross-site fetch — which would silently break `cookie_device`
+ * dedup, the default for every poll.
+ */
+export const crossSiteCookie = isProd
+  ? { sameSite: 'none', secure: true }
+  : { sameSite: 'lax', secure: false };
 
 /** Which optional integrations are actually wired up. */
 export const features = {
