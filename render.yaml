@@ -1,0 +1,158 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Describes the API service only. The client is a separate static site with
+# its own render.yaml in the pollhub-client repo.
+#
+# Applying this to the EXISTING pollhub-api service: Render matches services
+# by name, so review the change plan before confirming and make sure it says
+# it will UPDATE `pollhub-api` rather than create one. A newly created service
+# gets a different .onrender.com hostname, which would silently break the
+# client's VITE_API_BASE and every Google OAuth redirect.
+#
+# The name below MUST stay `pollhub-api`. It is the only thing tying this
+# blueprint to the live service and to the https://pollhub-api.onrender.com
+# hostname that the client, the OAuth redirect URI and API_PUBLIC_URL all
+# hardcode. Renaming the service here does not rename the old one — it
+# abandons it and builds a second.
+
+services:
+  - name: pollhub-api
+    type: web
+    runtime: node
+    plan: free
+
+    # A lockfile is committed, so `ci` works here and gives reproducible
+    # installs — unlike the client repo, which still needs `npm install`.
+    buildCommand: npm ci
+    startCommand: npm start
+
+    # /health is deliberately cheap and does not touch Postgres, so it stays
+    # green through a database outage. It proves the process is alive, not
+    # that the app is serving. Do not treat a green check as "the API works".
+    healthCheckPath: /health
+
+    # Region is fixed at creation and cannot be changed afterwards, so it is
+    # left unset here to avoid conflicting with the existing service. The
+    # database lives in AWS eu-west-1; if this service is on Oregon, every
+    # query pays a transatlantic round trip and `frankfurt` would be the
+    # closer home for a rebuild.
+    # region: frankfurt
+
+    envVars:
+      # --- runtime mode ---------------------------------------------------
+      # The reason this file exists. Without it NODE_ENV falls back to
+      # 'development', which leaks internal error messages in 500 responses
+      # and drops the dedup cookie to SameSite=Lax — where the browser will
+      # not send it from the client's origin to this one.
+      - key: NODE_ENV
+        value: production
+
+      - key: NODE_VERSION
+        value: "22"
+
+      # PORT is intentionally absent: Render injects it, and config/env.js
+      # reads process.env.PORT. Hardcoding it here would bind the wrong port.
+
+      # --- origins and links ----------------------------------------------
+      # Required once NODE_ENV is production — config/env.js:53 exits(1)
+      # without it rather than booting with a permissive CORS policy.
+      - key: CLIENT_ORIGIN
+        value: https://pollshub.onrender.com
+
+      # Points at the CLIENT, not this API. It builds the /verify-email and
+      # /reset-password links in outgoing mail, and both are client routes
+      # (App.jsx:30-31).
+      - key: APP_URL
+        value: https://pollshub.onrender.com
+
+      # Points at THIS API — the origin serving /api/v1/polls/:id/qr.svg.
+      # Must match the service hostname above, so it changes only if the
+      # service is ever renamed or moved to a custom domain.
+      - key: API_PUBLIC_URL
+        value: https://pollhub-api.onrender.com
+
+      - key: PUBLIC_POLL_BASE_URL
+        value: https://pollshub.onrender.com/p
+
+      # --- database -------------------------------------------------------
+      # sync:false keeps the value in the dashboard and out of git. Use the
+      # Supabase *transaction pooler* URI (port 6543, user postgres.<ref>):
+      # Render's egress is IPv4-only and the direct db.<ref>.supabase.co host
+      # is IPv6-only.
+      - key: DATABASE_URL
+        sync: false
+
+      - key: DATABASE_SSL
+        value: "true"
+
+      # --- secrets --------------------------------------------------------
+      # All sync:false rather than generateValue:true, deliberately. Render
+      # would generate fresh values, and rotating these against a live
+      # database is destructive: HASH_PEPPER keys the HMAC behind every
+      # stored IP and device hash (lib/hash.js:45), so changing it silently
+      # breaks vote deduplication on existing polls. JWT_SECRET and
+      # COOKIE_SECRET only sign out every active session, which is merely
+      # annoying. Each must be at least 32 characters.
+      - key: JWT_SECRET
+        sync: false
+      - key: COOKIE_SECRET
+        sync: false
+      - key: HASH_PEPPER
+        sync: false
+
+      # --- reverse proxy --------------------------------------------------
+      # Render does not put Cloudflare in front of the service by default.
+      # Leave false unless a Cloudflare proxy is added, or client IPs will be
+      # read from a header that nothing is setting.
+      - key: BEHIND_CLOUDFLARE
+        value: "false"
+
+      # --- Google OAuth ---------------------------------------------------
+      # This one points at the API, since the callback is an API route
+      # (auth.routes.js:30). It must match the authorised redirect URI in the
+      # Google Cloud console exactly, character for character.
+      - key: GOOGLE_REDIRECT_URI
+        value: https://pollhub-api.onrender.com/api/v1/auth/google/callback
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+
+      # --- email (Brevo) --------------------------------------------------
+      # MAIL_FROM_EMAIL must be a sender Brevo has verified; an unverified
+      # address is rejected at send time, not at boot, so a bad value here
+      # surfaces as signups that never receive a verification link.
+      - key: BREVO_API_KEY
+        sync: false
+      - key: MAIL_FROM_EMAIL
+        value: gbephraim@gmail.com
+      - key: MAIL_FROM_NAME
+        value: PollHub
+
+      # --- uploads (Cloudinary) -------------------------------------------
+      # Currently unset in production — /health reports uploads:false. All
+      # three of name/key/secret are needed before the feature flips on.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLOUDINARY_UPLOAD_PRESET
+        value: pollhub_signed
+
+      # --- optional integrations ------------------------------------------
+      # Blank is a supported state for all of these; config/env.js defaults
+      # them to '' and features{} switches the behaviour off.
+      - key: TURNSTILE_SECRET_KEY
+        sync: false
+      - key: EXPO_ACCESS_TOKEN
+        sync: false
+      - key: FCM_PROJECT_ID
+        sync: false
+      - key: FCM_CLIENT_EMAIL
+        sync: false
+      # Paste with real newlines or \n escapes intact — a private key mangled
+      # by the dashboard editor fails only when the first push is sent.
+      - key: FCM_PRIVATE_KEY
+        sync: false
