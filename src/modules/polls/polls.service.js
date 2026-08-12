@@ -141,7 +141,7 @@ export async function duplicate(pollId, userId) {
 export function shareLinks(poll) {
   return {
     url: `${env.PUBLIC_POLL_BASE_URL}/${poll.slug}`,
-    qrSvg: `${env.APP_URL}/api/v1/polls/${poll.id}/qr.svg`,
+    qrSvg: `${env.API_PUBLIC_URL}/api/v1/polls/${poll.id}/qr.svg`,
     shareCard: shareCardUrl(poll.cover_public_id, poll.title),
   };
 }

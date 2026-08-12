@@ -8,8 +8,18 @@ const bool = z
 const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
-  APP_URL: z.string().url().default('http://localhost:3000'),
-  PUBLIC_POLL_BASE_URL: z.string().url().default('http://localhost:3000/p'),
+  // Where the browser reaches the CLIENT. Used to build links that land on a
+  // client route — email verification and password reset — so it must not
+  // point at this API. Defaults to the Vite dev server, not this process.
+  APP_URL: z.string().url().default('http://localhost:5173'),
+
+  // Where the browser reaches THIS API. Used for links to API-served assets,
+  // such as a poll's qr.svg. Kept apart from APP_URL because in production
+  // the two live on different origins and one value cannot be both.
+  API_PUBLIC_URL: z.string().url().default('http://localhost:3000'),
+
+  // Also a client route (/p/:slug), so this follows APP_URL's origin.
+  PUBLIC_POLL_BASE_URL: z.string().url().default('http://localhost:5173/p'),
 
   // Comma-separated browser origins allowed to send credentialed requests.
   // Blank reflects whatever origin asks, which is only safe while no cookie
