@@ -130,14 +130,35 @@ services:
         value: PollHub
 
       # --- uploads (Cloudinary) -------------------------------------------
-      # Currently unset in production — /health reports uploads:false. All
-      # three of name/key/secret are needed before the feature flips on.
+      # All three of name/key/secret are needed before /health reports
+      # uploads:true and the API will mint a signature at all.
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
+
+      # SETUP REQUIRED — this preset is NOT created by anything in this repo.
+      # It has to exist in the Cloudinary console of the account matching
+      # CLOUDINARY_CLOUD_NAME above: Settings -> Upload -> Upload presets ->
+      # Add, named exactly as below, with signing mode "Signed".
+      #
+      # Until it exists every upload fails at Cloudinary with a 400
+      # "Upload preset not found" — after the browser has already sent the
+      # file, and with nothing wrong on this side to find. The signature the
+      # API mints covers this value (integrations/cloudinary.js:24), so the
+      # name here and the name in the console must match character for
+      # character.
+      #
+      # The preset is also where the upload limits live: cloudinary.js:13-15
+      # assumes it caps dimensions, formats and file size server-side, since
+      # a client that alters those params invalidates its own signature. The
+      # 5 MB check in the client (ImageUploader.jsx:32) is a courtesy to the
+      # user, not enforcement — set the real ceiling on the preset.
+      #
+      # Each Cloudinary account needs its own copy: a preset created in the
+      # cloud used for local development does nothing for the one here.
       - key: CLOUDINARY_UPLOAD_PRESET
         value: pollhub_signed
 
