@@ -20,7 +20,9 @@ import { isProd } from '../config/env.js';
  * repeat run cannot silently lock an admin out of their own account.
  */
 
-const MIN_PASSWORD_LENGTH = 12;
+// Matches signupSchema's floor, so a password valid for a normal account is
+// valid for the admin too. Generated passwords stay far longer than this.
+const MIN_PASSWORD_LENGTH = 8;
 
 function readArgs() {
   const [emailArg, passwordArg] = process.argv.slice(2);
