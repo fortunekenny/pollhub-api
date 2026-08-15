@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { env, features } from '../../config/env.js';
-import { ACCESS_TOKEN_TTL } from '../../config/constants.js';
+import { ACCESS_TOKEN_TTL, REFRESH_TOKEN_TTL_DAYS } from '../../config/constants.js';
 import * as repo from './auth.repository.js';
 import { hashPassword, verifyPassword, randomToken, tokenHash } from '../../lib/hash.js';
 import { badRequest, conflict, forbidden, unauthorized } from '../../lib/errors.js';
@@ -16,6 +16,61 @@ export function issueToken(user) {
     env.JWT_SECRET,
     { expiresIn: ACCESS_TOKEN_TTL, issuer: 'pollhub' },
   );
+}
+
+/**
+ * Mint a refresh token. Returned raw; only its hash is stored.
+ */
+export async function issueRefreshToken(userId) {
+  const token = randomToken();
+  await repo.createRefreshToken({
+    userId,
+    tokenHash: tokenHash(token),
+    expiresAt: new Date(Date.now() + REFRESH_TOKEN_TTL_DAYS * 86_400_000),
+  });
+  return token;
+}
+
+/**
+ * Trade a refresh token for a fresh pair.
+ *
+ * Rotating on every use means a stolen token is only useful until the real
+ * client refreshes once — after that the thief presents an already-revoked
+ * token, which is the detection. The response to detection is to revoke the
+ * whole family rather than just that token: once two parties hold tokens from
+ * one lineage there is no way to tell which is the legitimate one, so both are
+ * made to sign in again.
+ *
+ * A client that never received the response to its own rotation lands here
+ * too, and is signed out. That is the deliberate trade — a rare spurious
+ * sign-out costs less than a replayable month-long credential.
+ */
+export async function rotateRefreshToken(token) {
+  if (!token) throw unauthorized('Your session has expired');
+
+  const hash = tokenHash(token);
+  const claimed = await repo.claimRefreshToken(hash);
+
+  if (!claimed) {
+    const known = await repo.findRefreshToken(hash);
+    if (known?.revoked_at) {
+      const count = await repo.revokeAllRefreshTokens(known.user_id);
+      logger.warn('refresh token reuse detected', { userId: known.user_id, revoked: count });
+    }
+    throw unauthorized('Your session has expired');
+  }
+
+  const user = await repo.findById(claimed.user_id);
+  if (!user) throw unauthorized('Your session has expired');
+  // Checked on every refresh, not just at login: a suspension must take effect
+  // within the access token's lifetime, not a month later.
+  if (user.suspended_at) throw forbidden('This account has been suspended');
+
+  return { user, refreshToken: await issueRefreshToken(user.id) };
+}
+
+export async function revokeRefreshToken(token) {
+  if (token) await repo.revokeRefreshToken(tokenHash(token));
 }
 
 export function publicUser(user) {

@@ -56,6 +56,60 @@ export async function markVerified(userId, client) {
   );
 }
 
+export async function createRefreshToken({ userId, tokenHash, expiresAt }, client) {
+  const { rows } = await db(client).query(
+    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+          VALUES ($1, $2, $3)
+       RETURNING *`,
+    [userId, tokenHash, expiresAt],
+  );
+  return rows[0];
+}
+
+/**
+ * Claim a refresh token for rotation.
+ *
+ * The guards live inside the UPDATE for the same reason consumeEmailToken puts
+ * them there: two tabs refreshing at once must not both succeed and both be
+ * handed a new session. The loser updates zero rows and is treated as reuse.
+ */
+export async function claimRefreshToken(tokenHash, client) {
+  const { rows } = await db(client).query(
+    `UPDATE refresh_tokens
+        SET revoked_at = now()
+      WHERE token_hash = $1
+        AND revoked_at IS NULL
+        AND expires_at > now()
+  RETURNING *`,
+    [tokenHash],
+  );
+  return rows[0] ?? null;
+}
+
+export async function findRefreshToken(tokenHash, client) {
+  const { rows } = await db(client).query(
+    'SELECT * FROM refresh_tokens WHERE token_hash = $1',
+    [tokenHash],
+  );
+  return rows[0] ?? null;
+}
+
+export async function revokeRefreshToken(tokenHash, client) {
+  await db(client).query(
+    'UPDATE refresh_tokens SET revoked_at = now() WHERE token_hash = $1 AND revoked_at IS NULL',
+    [tokenHash],
+  );
+}
+
+/** Every live session for a user — sign-out-everywhere, and reuse response. */
+export async function revokeAllRefreshTokens(userId, client) {
+  const { rowCount } = await db(client).query(
+    'UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL',
+    [userId],
+  );
+  return rowCount;
+}
+
 export async function createEmailToken({ userId, tokenHash, purpose, expiresAt }, client) {
   const { rows } = await db(client).query(
     `INSERT INTO email_tokens (user_id, token_hash, purpose, expires_at)

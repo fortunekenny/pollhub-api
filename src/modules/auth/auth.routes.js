@@ -9,6 +9,10 @@ export const authRoutes = Router();
 
 authRoutes.post('/signup', authLimiter, validate({ body: s.signupSchema }), c.signup);
 authRoutes.post('/login', authLimiter, validate({ body: s.loginSchema }), c.login);
+// Rate-limited like the other credential endpoints: the refresh cookie is a
+// bearer credential, so this is as brute-forceable as login. Not behind
+// `authenticate` — the caller is here because its access token has expired.
+authRoutes.post('/refresh', authLimiter, c.refresh);
 authRoutes.post('/logout', c.logout);
 authRoutes.get('/me', authenticate, c.me);
 

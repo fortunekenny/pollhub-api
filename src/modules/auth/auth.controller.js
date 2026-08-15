@@ -1,10 +1,18 @@
 import crypto from 'node:crypto';
-import { env, isProd } from '../../config/env.js';
+import { env, isProd, crossSiteCookie } from '../../config/env.js';
+import { REFRESH_TOKEN_TTL_DAYS } from '../../config/constants.js';
 import * as service from './auth.service.js';
 import * as repo from './auth.repository.js';
-import { badRequest } from '../../lib/errors.js';
 
 const COOKIE = 'ph_at';
+const REFRESH_COOKIE = 'ph_rt';
+
+/**
+ * Scoped to the auth routes rather than '/'. The refresh token is the
+ * long-lived credential here, so it should not ride along on every poll and
+ * response request that has no use for it.
+ */
+const REFRESH_PATH = '/api/v1/auth';
 
 function setAuthCookie(res, token) {
   res.cookie(COOKIE, token, {
@@ -17,10 +25,31 @@ function setAuthCookie(res, token) {
   });
 }
 
+/**
+ * httpOnly and signed, so page scripts can neither read nor forge it — which
+ * is the whole reason the refresh token lives in a cookie while the access
+ * token sits in localStorage. crossSiteCookie because in production the client
+ * is on a different origin and a `lax` cookie would never be sent.
+ */
+function setRefreshCookie(res, token) {
+  res.cookie(REFRESH_COOKIE, token, {
+    httpOnly: true,
+    signed: true,
+    ...crossSiteCookie,
+    maxAge: REFRESH_TOKEN_TTL_DAYS * 86_400_000,
+    path: REFRESH_PATH,
+  });
+}
+
+function clearRefreshCookie(res) {
+  res.clearCookie(REFRESH_COOKIE, { ...crossSiteCookie, path: REFRESH_PATH });
+}
+
 export async function signup(req, res) {
   const user = await service.signup(req.body);
   const token = service.issueToken(user);
   setAuthCookie(res, token);
+  setRefreshCookie(res, await service.issueRefreshToken(user.id));
   res.status(201).json({ user: service.publicUser(user), token });
 }
 
@@ -28,11 +57,41 @@ export async function login(req, res) {
   const user = await service.login(req.body);
   const token = service.issueToken(user);
   setAuthCookie(res, token);
+  setRefreshCookie(res, await service.issueRefreshToken(user.id));
   res.json({ user: service.publicUser(user), token });
 }
 
-export async function logout(_req, res) {
+/**
+ * Trade the refresh cookie for a new access token.
+ *
+ * Unauthenticated by design: the caller is here precisely because its access
+ * token has expired. The cookie is the credential.
+ */
+export async function refresh(req, res) {
+  const presented = req.signedCookies?.[REFRESH_COOKIE];
+
+  let result;
+  try {
+    result = await service.rotateRefreshToken(presented);
+  } catch (err) {
+    // Clear on the way out, so a client holding a dead token stops retrying
+    // with it on every request.
+    clearRefreshCookie(res);
+    throw err;
+  }
+
+  const token = service.issueToken(result.user);
+  setAuthCookie(res, token);
+  setRefreshCookie(res, result.refreshToken);
+  res.json({ user: service.publicUser(result.user), token });
+}
+
+export async function logout(req, res) {
+  // Revoke server-side too: clearing the cookie only stops this browser from
+  // presenting it, and does nothing about a copy taken elsewhere.
+  await service.revokeRefreshToken(req.signedCookies?.[REFRESH_COOKIE]);
   res.clearCookie(COOKIE, { path: '/' });
+  clearRefreshCookie(res);
   res.status(204).end();
 }
 
@@ -95,9 +154,13 @@ export async function googleCallback(req, res) {
   res.clearCookie('ph_oauth_state');
 
   let token;
+  let refreshToken;
   try {
     const user = await service.googleCallback(code);
     token = service.issueToken(user);
+    // Google sign-in gets the same durable session as a password sign-in —
+    // otherwise it would be the one route that still expires after 15 minutes.
+    refreshToken = await service.issueRefreshToken(user.id);
   } catch (err) {
     // A badRequest here would reach the error handler and render JSON, which
     // is the exact failure this function exists to avoid.
@@ -105,5 +168,6 @@ export async function googleCallback(req, res) {
   }
 
   setAuthCookie(res, token);
+  setRefreshCookie(res, refreshToken);
   backToClient(res, { token });
 }
