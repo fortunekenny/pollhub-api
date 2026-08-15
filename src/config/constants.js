@@ -27,6 +27,20 @@ export const NOTIFICATION_EVENTS = [
   'results_ready',
 ];
 
+/**
+ * Response counts that earn the owner a notification.
+ *
+ * Sparse and widening on purpose: the interesting news is "this is taking
+ * off", and a poll that reaches 1000 should not have sent 1000 notifications
+ * on the way. Matched by equality, which is safe because the counter advances
+ * one response at a time — a skipped value would simply not notify rather
+ * than notify twice.
+ */
+export const RESPONSE_MILESTONES = [10, 50, 100, 250, 500, 1000, 5000];
+
+/** How far ahead of closes_at the "closing soon" warning is sent. */
+export const CLOSING_WARNING_WINDOW = '1 hour';
+
 export const DEDUP_COOKIE = 'ph_did';
 export const DEDUP_COOKIE_MAX_AGE_MS = 1000 * 60 * 60 * 24 * 365;
 

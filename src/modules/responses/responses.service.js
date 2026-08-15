@@ -4,7 +4,10 @@ import * as pollRepo from '../polls/polls.repository.js';
 import * as tallyRepo from '../tallies/tallies.repository.js';
 import * as inviteRepo from '../invites/invites.repository.js';
 import { identityHash } from '../../lib/hash.js';
-import { CHOICE_TYPES } from '../../config/constants.js';
+import { CHOICE_TYPES, RESPONSE_MILESTONES } from '../../config/constants.js';
+import { queryOne } from '../../db/pool.js';
+import { notify, events } from '../notifications/notifications.service.js';
+import { logger } from '../../lib/logger.js';
 import { badRequest, conflict, forbidden, gone, unauthorized } from '../../lib/errors.js';
 import { verifyTurnstile } from '../../integrations/turnstile.js';
 import { voteLimiter } from '../../middleware/rate-limit.js';
@@ -79,12 +82,42 @@ export async function submit({ slug, input, context }) {
     const delta = applyDelta(poll.id, optionIds);
     publishTallyDelta(poll.id, delta ?? Object.fromEntries(counts.map((c) => [c.option_id, c.count])));
 
+    // Deliberately not awaited: the response is committed and the respondent
+    // is owed a fast 201, not a wait on Brevo and FCM. Any failure inside is
+    // logged, never surfaced — nobody's vote should fail because their poll
+    // hit a round number.
+    void notifyMilestone(poll, responseCount);
+
     return { response, responseCount, tallies: counts };
   } catch (err) {
     if (err.code === PG.UNIQUE_VIOLATION) {
       throw conflict('You have already responded to this poll', 'already_responded');
     }
     throw err;
+  }
+}
+
+/**
+ * Tell the owner when their poll crosses a milestone.
+ *
+ * Equality against the milestone list is what makes this fire exactly once
+ * per threshold: bumpResponseCount returns the post-increment total, and it
+ * advances by one, so each value is observed by exactly one submission. Two
+ * simultaneous votes get two different totals from the same UPDATE.
+ */
+async function notifyMilestone(poll, responseCount) {
+  if (!RESPONSE_MILESTONES.includes(responseCount)) return;
+
+  try {
+    const owner = await queryOne('SELECT email FROM users WHERE id = $1', [poll.owner_id]);
+    await notify({
+      userId: poll.owner_id,
+      ...events.responseMilestone({ ...poll, response_count: responseCount }, responseCount),
+      link: `/polls/${poll.id}`,
+      data: { email: owner?.email, pollId: poll.id },
+    });
+  } catch (err) {
+    logger.warn('milestone notify failed', { err: err.message, pollId: poll.id });
   }
 }
 

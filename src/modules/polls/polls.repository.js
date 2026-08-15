@@ -142,6 +142,12 @@ export async function updatePoll(id, patch, client) {
   }
   if (sets.length === 0) return findById(id, client);
 
+  // A moved deadline is a new deadline: clear the closing-warning marker so
+  // the owner is warned about the time the poll now actually closes. Without
+  // this, extending a poll that was already warned about silently costs it
+  // its warning.
+  if (patch.closesAt !== undefined) sets.push('closing_notified_at = NULL');
+
   const { rows } = await db(client).query(
     `UPDATE polls SET ${sets.join(', ')}, updated_at = now() WHERE id = $1 RETURNING *`,
     values,

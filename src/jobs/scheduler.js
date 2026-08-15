@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import { closeDuePolls } from './close-polls.js';
+import { warnClosingPolls } from './warn-closing-polls.js';
 import { cleanupRateEvents } from './cleanup-rate-events.js';
 import { logger } from '../lib/logger.js';
 
@@ -13,6 +14,10 @@ import { logger } from '../lib/logger.js';
 export function startScheduler() {
   const tasks = [
     cron.schedule('* * * * *', () => run('close-polls', closeDuePolls)),
+    // Every five minutes rather than every minute: the warning window is an
+    // hour wide, so minute precision buys nothing and the query would run
+    // sixty times an hour to find the same nothing.
+    cron.schedule('*/5 * * * *', () => run('warn-closing-polls', warnClosingPolls)),
     cron.schedule('0 * * * *', () => run('cleanup-rate-events', cleanupRateEvents)),
   ];
 
