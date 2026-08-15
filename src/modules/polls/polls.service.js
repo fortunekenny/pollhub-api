@@ -194,7 +194,11 @@ export function presentQuestions(questions, { withCounts }) {
       id: o.id,
       label: o.label,
       imageUrl: imageUrl(o.imagePublicId, { width: 600 }),
-      ...(withCounts ? { count: o.count ?? 0 } : {}),
+      // rankSum rides along with count: for a ranking question the client
+      // divides the two to get the average position. Withheld for the same
+      // reason count is when results are not yet visible — the sum of
+      // positions leaks the standings just as plainly as the tally does.
+      ...(withCounts ? { count: o.count ?? 0, rankSum: o.rankSum ?? 0 } : {}),
     })),
   }));
 }

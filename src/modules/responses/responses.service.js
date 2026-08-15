@@ -35,7 +35,10 @@ export async function submit({ slug, input, context }) {
 
   const dedup = buildDedupKeys(poll, context, ipHashValue);
   const answers = validateAnswers(poll.questions, input.answers);
-  const optionIds = answers.filter((a) => a.optionId).map((a) => a.optionId);
+  const chosen = answers.filter((a) => a.optionId);
+  const optionIds = chosen.map((a) => a.optionId);
+  // Carries the position too, so a ranking's rank_sum advances with its count.
+  const optionEntries = chosen.map((a) => ({ optionId: a.optionId, rank: a.rank }));
 
   let inviteCodeId = null;
   if (poll.dedup_mode === 'invite_code') {
@@ -65,7 +68,7 @@ export async function submit({ slug, input, context }) {
 
       // Same client, same transaction as the insert above — this is the whole
       // reason repositories take a client instead of grabbing their own.
-      const updated = await tallyRepo.incrementMany(poll.id, optionIds, client);
+      const updated = await tallyRepo.incrementMany(poll.id, optionEntries, client);
       const total = await repo.bumpResponseCount(poll.id, client);
 
       return { response: inserted, counts: updated, responseCount: total };
@@ -170,6 +173,26 @@ function validateAnswers(questions, submitted) {
       }
 
       const valid = new Set((question.options ?? []).map((o) => o.id));
+
+      if (question.type === 'ranking') {
+        // A ranking is an ordering of every option, so the payload has to be a
+        // permutation: no repeats, nothing missing. Anything else would make
+        // the positions incomparable between respondents — a 3rd place out of
+        // 5 does not mean the same thing as a 3rd out of 3.
+        if (new Set(ids).size !== ids.length) {
+          throw badRequest(`Question "${question.prompt}" lists an option more than once`);
+        }
+        if (ids.length !== valid.size) {
+          throw badRequest(`Question "${question.prompt}" must rank every option`);
+        }
+        ids.forEach((optionId, index) => {
+          if (!valid.has(optionId)) throw badRequest('Option does not belong to this question');
+          // 1-based: "position 1" reads as first place in every report.
+          rows.push({ questionId: question.id, optionId, rank: index + 1 });
+        });
+        continue;
+      }
+
       for (const optionId of ids) {
         // Rejects an option id copied from a different poll entirely.
         if (!valid.has(optionId)) throw badRequest('Option does not belong to this question');

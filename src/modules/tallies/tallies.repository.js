@@ -13,21 +13,31 @@ const db = (client) => client ?? pool;
  * Must be called with the same client as the response insert so the two
  * commit or roll back together.
  */
-export async function incrementMany(pollId, optionIds, client) {
-  if (optionIds.length === 0) return [];
+export async function incrementMany(pollId, entries, client) {
+  if (entries.length === 0) return [];
+
+  // Ranked answers also add their position to rank_sum, so a ranking's average
+  // position stays a running total on the same row as its count rather than an
+  // aggregate query per viewer. Non-ranking answers contribute 0 and leave
+  // rank_sum untouched.
+  const optionIds = entries.map((e) => e.optionId);
+  const ranks = entries.map((e) => e.rank ?? 0);
+
   const { rows } = await db(client).query(
-    `UPDATE tallies
-        SET count = count + 1
-      WHERE poll_id = $1 AND option_id = ANY($2::uuid[])
-  RETURNING option_id, count`,
-    [pollId, optionIds],
+    `UPDATE tallies t
+        SET count = t.count + 1,
+            rank_sum = t.rank_sum + v.rank
+       FROM UNNEST($2::uuid[], $3::int[]) AS v(option_id, rank)
+      WHERE t.poll_id = $1 AND t.option_id = v.option_id
+  RETURNING t.option_id, t.count, t.rank_sum`,
+    [pollId, optionIds, ranks],
   );
   return rows;
 }
 
 export async function forPoll(pollId, client) {
   const { rows } = await db(client).query(
-    'SELECT option_id, count FROM tallies WHERE poll_id = $1',
+    'SELECT option_id, count, rank_sum FROM tallies WHERE poll_id = $1',
     [pollId],
   );
   return rows;
@@ -37,9 +47,12 @@ export async function forPoll(pollId, client) {
 export async function recomputeFromAnswers(pollId, client) {
   await db(client).query(
     `UPDATE tallies t
-        SET count = COALESCE(sub.n, 0)
+        SET count = COALESCE(sub.n, 0),
+            rank_sum = COALESCE(sub.rank_sum, 0)
        FROM (
-            SELECT a.option_id, count(*)::bigint AS n
+            SELECT a.option_id,
+                   count(*)::bigint AS n,
+                   COALESCE(sum(a.rank), 0)::bigint AS rank_sum
               FROM answers a
               JOIN responses r ON r.id = a.response_id
              WHERE r.poll_id = $1 AND a.option_id IS NOT NULL

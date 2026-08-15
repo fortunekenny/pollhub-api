@@ -26,13 +26,14 @@ export async function insertAnswers(responseId, answers, client) {
   const values = [];
   const params = [];
   answers.forEach((a, i) => {
-    const base = i * 4;
-    values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`);
-    params.push(responseId, a.questionId, a.optionId ?? null, a.valueText ?? null);
+    const base = i * 5;
+    values.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`);
+    // rank is set only for ranking answers; every other type stores NULL.
+    params.push(responseId, a.questionId, a.optionId ?? null, a.valueText ?? null, a.rank ?? null);
   });
 
   await db(client).query(
-    `INSERT INTO answers (response_id, question_id, option_id, value_text)
+    `INSERT INTO answers (response_id, question_id, option_id, value_text, rank)
      VALUES ${values.join(', ')}`,
     params,
   );
