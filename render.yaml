@@ -160,7 +160,7 @@ services:
       # Each Cloudinary account needs its own copy: a preset created in the
       # cloud used for local development does nothing for the one here.
       - key: CLOUDINARY_UPLOAD_PRESET
-        value: pollhub_signed
+        value: pollshub
 
       # --- optional integrations ------------------------------------------
       # Blank is a supported state for all of these; config/env.js defaults
