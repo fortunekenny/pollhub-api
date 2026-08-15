@@ -59,6 +59,12 @@ export async function submit(req, res) {
     tallies: showResults
       ? Object.fromEntries(result.tallies.map((t) => [t.option_id, t.count]))
       : undefined,
+    // Ranking standings move with the sum of positions, not the count. Sent
+    // alongside so the confirmation screen can include the response that was
+    // just submitted instead of showing figures that predate it.
+    rankSums: showResults
+      ? Object.fromEntries(result.tallies.map((t) => [t.option_id, Number(t.rank_sum)]))
+      : undefined,
   });
 }
 

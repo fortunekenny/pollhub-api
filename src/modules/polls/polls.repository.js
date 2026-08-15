@@ -77,7 +77,10 @@ export async function findFullBySlug(slug, client) {
                      json_build_object(
                        'id', op.id, 'position', op.position,
                        'label', op.label, 'imagePublicId', op.image_public_id,
-                       'count', COALESCE(t.count, 0)
+                       'count', COALESCE(t.count, 0),
+                       -- Sum of positions for ranking questions; average
+                       -- position is rankSum/count. 0 for every other type.
+                       'rankSum', COALESCE(t.rank_sum, 0)
                      ) ORDER BY op.position
                    ) AS options
               FROM options op
