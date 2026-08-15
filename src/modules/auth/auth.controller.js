@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { isProd } from '../../config/env.js';
+import { env, isProd } from '../../config/env.js';
 import * as service from './auth.service.js';
 import * as repo from './auth.repository.js';
 import { badRequest } from '../../lib/errors.js';
@@ -70,16 +70,40 @@ export async function googleStart(req, res) {
   res.redirect(service.googleAuthUrl(state));
 }
 
+/**
+ * Land the browser back on the client.
+ *
+ * Google navigates the browser here, so this endpoint's response is a page the
+ * user looks at — a JSON body renders as raw text, and a thrown error renders
+ * as the API's error envelope. Every exit has to be a redirect.
+ *
+ * The token travels in the fragment rather than the query string: fragments
+ * are never sent to a server, so it stays out of Render's access logs, out of
+ * any Referer header, and out of the client's own request telemetry.
+ */
+function backToClient(res, params) {
+  res.redirect(`${env.APP_URL}/auth/callback#${new URLSearchParams(params)}`);
+}
+
 export async function googleCallback(req, res) {
   const { code, state } = req.query;
-  if (!code) throw badRequest('Missing authorization code');
+
+  if (!code) return backToClient(res, { error: 'Google did not return an authorization code' });
   if (!state || state !== req.signedCookies?.ph_oauth_state) {
-    throw badRequest('Invalid OAuth state');
+    return backToClient(res, { error: 'Sign-in could not be verified. Please try again.' });
   }
   res.clearCookie('ph_oauth_state');
 
-  const user = await service.googleCallback(code);
-  const token = service.issueToken(user);
+  let token;
+  try {
+    const user = await service.googleCallback(code);
+    token = service.issueToken(user);
+  } catch (err) {
+    // A badRequest here would reach the error handler and render JSON, which
+    // is the exact failure this function exists to avoid.
+    return backToClient(res, { error: err.message ?? 'Google sign-in failed' });
+  }
+
   setAuthCookie(res, token);
-  res.json({ user: service.publicUser(user), token });
+  backToClient(res, { token });
 }
