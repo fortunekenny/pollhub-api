@@ -1,5 +1,8 @@
 import { env } from '../../config/env.js';
 import { withTransaction, PG } from '../../db/transaction.js';
+import { queryOne } from '../../db/pool.js';
+import { notify, events } from '../notifications/notifications.service.js';
+import { logger } from '../../lib/logger.js';
 import * as repo from './polls.repository.js';
 import { generateSlug } from '../../lib/slug.js';
 import { imageUrl, shareCardUrl } from '../../integrations/cloudinary.js';
@@ -104,7 +107,31 @@ export async function close(pollId, userId) {
   const closed = await repo.setStatus(pollId, 'closed');
   publishPollStatus(pollId, 'closed');
   evict(pollId); // nothing more will be tallied
+
+  // The same event the scheduler raises when a deadline passes. A poll that
+  // closed is a poll whose results are final, and that was worth telling the
+  // owner about either way — closing by hand used to send nothing at all.
+  //
+  // No double-send risk: closeDuePolls only ever selects `published` rows, and
+  // this one is already `closed` by the time that job could see it.
+  void notifyResultsReady(closed);
+
   return closed;
+}
+
+/** Not awaited by callers: a notification must not delay or fail the close. */
+async function notifyResultsReady(poll) {
+  try {
+    const owner = await queryOne('SELECT email FROM users WHERE id = $1', [poll.owner_id]);
+    await notify({
+      userId: poll.owner_id,
+      ...events.resultsReady(poll),
+      link: `/polls/${poll.id}`,
+      data: { email: owner?.email, pollId: poll.id },
+    });
+  } catch (err) {
+    logger.warn('close notify failed', { err: err.message, pollId: poll.id });
+  }
 }
 
 export async function archive(pollId, userId) {
