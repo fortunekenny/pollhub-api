@@ -89,5 +89,15 @@ export async function qr(req, res) {
   if (!poll) throw notFound('Poll not found');
 
   const svg = await qrSvg(service.shareLinks(poll).url);
-  res.type('image/svg+xml').set('Cache-Control', 'public, max-age=86400').send(svg);
+
+  // Helmet defaults Cross-Origin-Resource-Policy to same-origin, which makes
+  // the browser refuse this image whenever the client is on its own origin —
+  // which it is in every deployment. The response carries no secrets and the
+  // route needs no auth, so it is safe to hand out cross-origin. Set per route
+  // rather than relaxing the default for everything.
+  res
+    .type('image/svg+xml')
+    .set('Cross-Origin-Resource-Policy', 'cross-origin')
+    .set('Cache-Control', 'public, max-age=86400')
+    .send(svg);
 }
