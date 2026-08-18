@@ -194,6 +194,19 @@ export async function questionsWithOptions(pollId, client) {
   return rows;
 }
 
+/**
+ * Delete a poll outright.
+ *
+ * No cascade is written here because the schema already declares it: every
+ * child table references polls with ON DELETE CASCADE, so questions, options,
+ * responses, answers, tallies, invite codes and reports go with it in one
+ * statement.
+ */
+export async function deletePoll(id, client) {
+  const { rowCount } = await db(client).query('DELETE FROM polls WHERE id = $1', [id]);
+  return rowCount;
+}
+
 /** Polls whose close time has passed but which are still open. */
 export async function dueForClose(client) {
   const { rows } = await db(client).query(

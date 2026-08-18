@@ -79,9 +79,11 @@ export async function archive(req, res) {
   res.json({ poll: service.presentPoll(poll, { includeOwnerFields: true }) });
 }
 
-export async function duplicate(req, res) {
-  const poll = await service.duplicate(req.validatedParams.id, req.user.id);
-  res.status(201).json({ poll: service.presentPoll(poll, { includeOwnerFields: true }) });
+export async function remove(req, res) {
+  // The whole user, not just the id: which statuses may be deleted depends on
+  // the role, and the service is the one place that decides it.
+  await service.remove(req.validatedParams.id, req.user);
+  res.status(204).end();
 }
 
 export async function qr(req, res) {

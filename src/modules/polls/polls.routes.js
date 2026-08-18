@@ -44,4 +44,6 @@ pollRoutes.patch(
 pollRoutes.post('/:id/publish', writeLimiter, validate({ params: s.pollIdParam }), c.publish);
 pollRoutes.post('/:id/close', writeLimiter, validate({ params: s.pollIdParam }), c.close);
 pollRoutes.post('/:id/archive', writeLimiter, validate({ params: s.pollIdParam }), c.archive);
-pollRoutes.post('/:id/duplicate', writeLimiter, validate({ params: s.pollIdParam }), c.duplicate);
+
+// Role decides which statuses this accepts — see polls.service.remove.
+pollRoutes.delete('/:id', writeLimiter, validate({ params: s.pollIdParam }), c.remove);

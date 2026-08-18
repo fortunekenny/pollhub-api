@@ -5,7 +5,7 @@ import { notify, events } from '../notifications/notifications.service.js';
 import { logger } from '../../lib/logger.js';
 import * as repo from './polls.repository.js';
 import { generateSlug } from '../../lib/slug.js';
-import { imageUrl, shareCardUrl } from '../../integrations/cloudinary.js';
+import { imageUrl, shareCardUrl, destroyImage } from '../../integrations/cloudinary.js';
 import { badRequest, conflict, forbidden, notFound } from '../../lib/errors.js';
 import { evict } from '../../realtime/tally-mirror.js';
 import { publishPollStatus } from '../../realtime/ws-server.js';
@@ -141,28 +141,57 @@ export async function archive(pollId, userId) {
   return archived;
 }
 
-/** Copy structure only — never responses or tallies. */
-export async function duplicate(pollId, userId) {
-  const poll = await getOwned(pollId, userId);
-  const questions = await repo.questionsWithOptions(pollId);
+/**
+ * Permanently delete a poll and everything under it.
+ *
+ * Which statuses allow this differs by role, because the risk does. An owner
+ * may only delete what is already archived — a state they had to choose
+ * deliberately, and which already hides the poll — so the destructive step is
+ * never one click away from a poll people can still see. An admin may also
+ * delete a closed poll, since moderation sometimes has to remove something
+ * without waiting for its owner to archive it.
+ *
+ * A draft is not deletable by either. That is a deliberate reading of the
+ * rule rather than an oversight: archive it first, which costs one click and
+ * keeps a single path to deletion instead of two.
+ *
+ * The rows go via ON DELETE CASCADE — responses, answers, tallies, invite
+ * codes and reports all follow the poll. Images are cleaned up afterwards and
+ * best-effort: an orphaned Cloudinary asset is a smaller problem than a poll
+ * that refuses to delete because an unrelated service is down.
+ */
+const DELETABLE_STATUSES = { admin: ['closed', 'archived'], creator: ['archived'] };
 
-  return createPoll(userId, {
-    type: poll.type,
-    title: `${poll.title} (copy)`,
-    description: poll.description ?? undefined,
-    visibility: poll.visibility,
-    identityMode: poll.identity_mode,
-    dedupMode: poll.dedup_mode,
-    resultsMode: poll.results_mode,
-    coverPublicId: poll.cover_public_id ?? undefined,
-    questions: questions.map((q) => ({
-      type: q.type,
-      prompt: q.prompt,
-      required: q.required,
-      config: q.config,
-      options: q.options.map((o) => ({ label: o.label ?? undefined })),
-    })),
-  });
+export async function remove(pollId, user) {
+  const poll = await repo.findById(pollId);
+  if (!poll) throw notFound('Poll not found');
+
+  const isAdmin = user.role === 'admin';
+  if (!isAdmin && poll.owner_id !== user.id) throw forbidden('You do not own this poll');
+
+  const allowed = DELETABLE_STATUSES[isAdmin ? 'admin' : 'creator'];
+  if (!allowed.includes(poll.status)) {
+    throw conflict(
+      isAdmin
+        ? 'Only closed or archived polls can be deleted'
+        : 'Only archived polls can be deleted — archive it first',
+      'not_deletable',
+    );
+  }
+
+  // Read the image ids before the rows go, or there is nothing left to clean.
+  const questions = await repo.questionsWithOptions(pollId);
+  const publicIds = [
+    poll.cover_public_id,
+    ...questions.flatMap((q) => (q.options ?? []).map((o) => o.imagePublicId)),
+  ].filter(Boolean);
+
+  await repo.deletePoll(pollId);
+  evict(pollId);
+
+  for (const publicId of publicIds) await destroyImage(publicId);
+
+  return { id: pollId, imagesRemoved: publicIds.length };
 }
 
 export function shareLinks(poll) {
