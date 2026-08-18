@@ -88,6 +88,11 @@ export async function archive(req, res) {
   res.json({ poll: service.presentPoll(poll, { includeOwnerFields: true }) });
 }
 
+export async function series(req, res) {
+  const poll = await service.getOwned(req.validatedParams.id, req.user.id);
+  res.json(await service.seriesReport(poll));
+}
+
 export async function remove(req, res) {
   // The whole user, not just the id: which statuses may be deleted depends on
   // the role, and the service is the one place that decides it.

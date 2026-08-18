@@ -163,6 +163,39 @@ export async function setRepeatInterval(id, interval, client) {
   return rows[0];
 }
 
+/**
+ * Every round of a series, with its per-option tallies, as flat rows.
+ *
+ * Joined on position rather than option id, because each round is a fresh copy
+ * with fresh ids — the third option of the second question is the same choice
+ * in every round, and its id is not. Labels would read better as a key but the
+ * owner can edit one round's wording without meaning to break the series.
+ */
+export async function seriesRounds(seriesId, client) {
+  const { rows } = await db(client).query(
+    `SELECT p.id           AS poll_id,
+            p.round,
+            p.status,
+            p.opens_at,
+            p.closes_at,
+            p.response_count,
+            q.position     AS question_position,
+            q.prompt       AS question_prompt,
+            q.type         AS question_type,
+            op.position    AS option_position,
+            op.label       AS option_label,
+            COALESCE(t.count, 0) AS count
+       FROM polls p
+       LEFT JOIN questions q ON q.poll_id = p.id
+       LEFT JOIN options op  ON op.question_id = q.id
+       LEFT JOIN tallies t   ON t.option_id = op.id AND t.poll_id = p.id
+      WHERE p.series_id = $1
+      ORDER BY p.round, q.position, op.position`,
+    [seriesId],
+  );
+  return rows;
+}
+
 export async function latestRound(seriesId, client) {
   const { rows } = await db(client).query(
     'SELECT * FROM polls WHERE series_id = $1 ORDER BY round DESC LIMIT 1',

@@ -162,6 +162,90 @@ export async function rollSeries(closedPoll) {
   return repo.setStatus(next.id, 'published');
 }
 
+/**
+ * How a repeating poll has moved across its rounds.
+ *
+ * Rounds carry their own results already; what no single round can answer is
+ * whether the answer is changing. So this is shaped for comparison: one row
+ * per option, one column per round, and the rounds ordered oldest first so a
+ * trend reads left to right.
+ *
+ * Only rounds that have closed, plus the one currently running, are worth
+ * plotting — a round that has not opened has nothing to say and would render
+ * as a misleading zero.
+ */
+export async function seriesReport(poll) {
+  if (!poll.series_id) throw badRequest('This poll does not repeat');
+
+  const rows = await repo.seriesRounds(poll.series_id);
+
+  const rounds = [];
+  const seenRounds = new Set();
+  const questions = new Map();
+
+  for (const r of rows) {
+    if (!seenRounds.has(r.round)) {
+      seenRounds.add(r.round);
+      rounds.push({
+        pollId: r.poll_id,
+        round: r.round,
+        status: r.status,
+        opensAt: r.opens_at,
+        closesAt: r.closes_at,
+        responseCount: r.response_count,
+      });
+    }
+
+    if (r.question_position === null || r.option_position === null) continue;
+
+    if (!questions.has(r.question_position)) {
+      questions.set(r.question_position, {
+        position: r.question_position,
+        prompt: r.question_prompt,
+        type: r.question_type,
+        options: new Map(),
+      });
+    }
+    const q = questions.get(r.question_position);
+
+    if (!q.options.has(r.option_position)) {
+      q.options.set(r.option_position, {
+        position: r.option_position,
+        label: r.option_label,
+        counts: {},
+      });
+    }
+    // Later rounds win the label, so a corrected wording is what shows.
+    const opt = q.options.get(r.option_position);
+    if (r.option_label) opt.label = r.option_label;
+    opt.counts[r.round] = Number(r.count);
+  }
+
+  // Split before summarising, or the totals describe a different set of rounds
+  // than the table does — and "average per round" divides by rounds nobody can
+  // see yet.
+  const now = Date.now();
+  const started = rounds.filter((r) => !r.opensAt || new Date(r.opensAt).getTime() <= now);
+  const upcoming = rounds.length - started.length;
+
+  return {
+    series: {
+      slug: poll.series_slug,
+      repeatInterval: poll.repeat_interval,
+      rounds: started.length,
+      upcoming,
+      totalResponses: started.reduce((n, r) => n + r.responseCount, 0),
+    },
+    rounds: started,
+    questions: [...questions.values()].map((q) => ({
+      position: q.position,
+      prompt: q.prompt,
+      type: q.type,
+      options: [...q.options.values()],
+    })),
+  };
+}
+
 export async function getOwned(pollId, userId) {
   const poll = await repo.findById(pollId);
   if (!poll) throw notFound('Poll not found');
