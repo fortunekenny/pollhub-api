@@ -434,9 +434,6 @@ export function presentPoll(poll, { includeOwnerFields = false } = {}) {
     // When it actually started taking responses. A poll with no closing time
     // has no countdown to show, so the client counts up from here instead.
     publishedAt: poll.published_at ?? null,
-    // A closed round of a repeating poll is not finished, it is between
-    // rounds — this is what it counts down to.
-    nextOpensAt: poll.next_opens_at ?? null,
     // Stands in for a close time on a poll shut by hand, which has no
     // closes_at to report. setStatus stamps updated_at, so for a closed poll
     // this is when it closed — until something edits it again.

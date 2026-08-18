@@ -47,25 +47,8 @@ export async function seedTally(pollId, optionId, client) {
   );
 }
 
-/**
- * When the next round of this poll's series opens.
- *
- * Correlated rather than joined, because it is null for the overwhelming
- * majority of rows: only a poll in a series has a successor at all. Returns
- * null for a one-off poll and for the newest round of a series.
- */
-const NEXT_OPENS_AT = `
-  (SELECT MIN(n.opens_at)
-     FROM polls n
-    WHERE n.series_id = p.series_id
-      AND p.series_id IS NOT NULL
-      AND n.round > p.round) AS next_opens_at`;
-
 export async function findById(id, client) {
-  const { rows } = await db(client).query(
-    `SELECT p.*, ${NEXT_OPENS_AT} FROM polls p WHERE p.id = $1`,
-    [id],
-  );
+  const { rows } = await db(client).query('SELECT * FROM polls WHERE id = $1', [id]);
   return rows[0] ?? null;
 }
 
@@ -225,8 +208,7 @@ export async function listByOwner({ ownerId, status, limit, offset }, client) {
   const { rows } = await db(client).query(
     `SELECT p.id, p.type, p.title, p.slug, p.visibility, p.status, p.results_mode,
             p.response_count, p.opens_at, p.closes_at, p.created_at,
-            p.published_at, p.repeat_interval, p.series_id, p.round, p.updated_at,
-            ${NEXT_OPENS_AT}
+            p.published_at, p.repeat_interval, p.series_id, p.round, p.updated_at
        FROM polls p
       WHERE p.owner_id = $1
         AND ($2::text IS NULL OR p.status = $2)
