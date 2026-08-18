@@ -431,6 +431,9 @@ export function presentPoll(poll, { includeOwnerFields = false } = {}) {
     coverUrl: imageUrl(poll.cover_public_id, { width: 1200 }),
     opensAt: poll.opens_at,
     closesAt: poll.closes_at,
+    // When it actually started taking responses. A poll with no closing time
+    // has no countdown to show, so the client counts up from here instead.
+    publishedAt: poll.published_at ?? null,
     repeatInterval: poll.repeat_interval ?? null,
     // Only meaningful for a repeating poll; round 1 of a one-off says nothing.
     round: poll.series_id ? poll.round : null,

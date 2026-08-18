@@ -222,7 +222,8 @@ export async function listPublic({ limit, offset }, client) {
   const { rows } = await db(client).query(
     // closes_at rides along so the listing can count down rather than showing
     // a deadline that was accurate when the page loaded.
-    `SELECT id, type, title, slug, response_count, created_at, closes_at, status
+    `SELECT id, type, title, slug, response_count, created_at, closes_at, status,
+            opens_at, published_at
        FROM polls
       WHERE visibility = 'public' AND status = 'published'
       ORDER BY created_at DESC
