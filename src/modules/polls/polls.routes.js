@@ -46,6 +46,9 @@ pollRoutes.post('/:id/close', writeLimiter, validate({ params: s.pollIdParam }),
 pollRoutes.post('/:id/archive', writeLimiter, validate({ params: s.pollIdParam }), c.archive);
 
 pollRoutes.get('/:id/series', readLimiter, validate({ params: s.pollIdParam }), c.series);
+// Stops the repeat and closes the current round, in that order — see the
+// service, where getting it backwards would open one more round.
+pollRoutes.post('/:id/end-series', writeLimiter, validate({ params: s.pollIdParam }), c.endSeries);
 
 // Role decides which statuses this accepts — see polls.service.remove.
 pollRoutes.delete('/:id', writeLimiter, validate({ params: s.pollIdParam }), c.remove);

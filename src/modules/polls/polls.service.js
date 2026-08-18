@@ -326,6 +326,27 @@ async function notifyResultsReady(poll) {
   }
 }
 
+/**
+ * Stop a repeating poll for good.
+ *
+ * Order is the whole of it: repeat_interval is cleared *before* the round is
+ * closed. Closing first would roll the series one last time — close() and the
+ * scheduler both read that column to decide whether to open another round —
+ * and the creator would end a poll only to watch a fresh one appear.
+ *
+ * The final round stays closed rather than archived. Its results are still
+ * worth reading, and archiving is a separate decision.
+ */
+export async function endSeries(pollId, userId) {
+  const poll = await getOwned(pollId, userId);
+  if (!poll.repeat_interval) throw badRequest('This poll does not repeat');
+
+  const stopped = await repo.setRepeatInterval(pollId, null);
+
+  if (stopped.status === 'published') return close(pollId, userId);
+  return stopped;
+}
+
 export async function archive(pollId, userId) {
   await getOwned(pollId, userId);
   const archived = await repo.setStatus(pollId, 'archived');
@@ -441,6 +462,9 @@ export function presentPoll(poll, { includeOwnerFields = false } = {}) {
     repeatInterval: poll.repeat_interval ?? null,
     // Only meaningful for a repeating poll; round 1 of a one-off says nothing.
     round: poll.series_id ? poll.round : null,
+    // Present only where a listing collapsed a series to one row.
+    seriesRounds: poll.series_rounds != null ? Number(poll.series_rounds) : null,
+    seriesResponses: poll.series_responses != null ? Number(poll.series_responses) : null,
     responseCount: poll.response_count,
     createdAt: poll.created_at,
     ...(includeOwnerFields ? { ownerId: poll.owner_id, share: shareLinks(poll) } : {}),

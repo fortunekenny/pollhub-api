@@ -88,6 +88,11 @@ export async function archive(req, res) {
   res.json({ poll: service.presentPoll(poll, { includeOwnerFields: true }) });
 }
 
+export async function endSeries(req, res) {
+  const poll = await service.endSeries(req.validatedParams.id, req.user.id);
+  res.json({ poll: service.presentPoll(poll, { includeOwnerFields: true }) });
+}
+
 export async function series(req, res) {
   const poll = await service.getOwned(req.validatedParams.id, req.user.id);
   res.json(await service.seriesReport(poll));

@@ -204,15 +204,41 @@ export async function latestRound(seriesId, client) {
   return rows[0] ?? null;
 }
 
+/**
+ * A creator's polls, one row per series.
+ *
+ * A repeating poll produces a round per interval, and every round is a real
+ * poll row. Listed plainly, a daily poll adds a card a day forever and the
+ * dashboard stops being readable — so a series collapses to its newest round,
+ * carrying a count of how many there have been. The rest stay reachable from
+ * the poll's own Series tab, which is where round history belongs.
+ *
+ * COALESCE(series_id, id) puts a one-off poll in a partition of its own, so
+ * the same window handles both without a UNION.
+ *
+ * The status filter runs before the partitioning, so filtering by `closed`
+ * yields each series' newest closed round rather than dropping any series
+ * whose current round happens to be open.
+ */
 export async function listByOwner({ ownerId, status, limit, offset }, client) {
   const { rows } = await db(client).query(
-    `SELECT p.id, p.type, p.title, p.slug, p.visibility, p.status, p.results_mode,
-            p.response_count, p.opens_at, p.closes_at, p.created_at,
-            p.published_at, p.repeat_interval, p.series_id, p.round, p.updated_at
-       FROM polls p
-      WHERE p.owner_id = $1
-        AND ($2::text IS NULL OR p.status = $2)
-      ORDER BY p.created_at DESC
+    `SELECT * FROM (
+       SELECT p.id, p.type, p.title, p.slug, p.visibility, p.status, p.results_mode,
+              p.response_count, p.opens_at, p.closes_at, p.created_at,
+              p.published_at, p.repeat_interval, p.series_id, p.round, p.updated_at,
+              ROW_NUMBER() OVER (
+                PARTITION BY COALESCE(p.series_id, p.id) ORDER BY p.round DESC
+              ) AS rn,
+              COUNT(*) OVER (PARTITION BY COALESCE(p.series_id, p.id)) AS series_rounds,
+              SUM(p.response_count) OVER (
+                PARTITION BY COALESCE(p.series_id, p.id)
+              ) AS series_responses
+         FROM polls p
+        WHERE p.owner_id = $1
+          AND ($2::text IS NULL OR p.status = $2)
+     ) x
+      WHERE x.rn = 1
+      ORDER BY x.created_at DESC
       LIMIT $3 OFFSET $4`,
     [ownerId, status ?? null, limit, offset],
   );
