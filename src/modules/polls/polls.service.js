@@ -437,6 +437,10 @@ export function presentPoll(poll, { includeOwnerFields = false } = {}) {
     // A closed round of a repeating poll is not finished, it is between
     // rounds — this is what it counts down to.
     nextOpensAt: poll.next_opens_at ?? null,
+    // Stands in for a close time on a poll shut by hand, which has no
+    // closes_at to report. setStatus stamps updated_at, so for a closed poll
+    // this is when it closed — until something edits it again.
+    updatedAt: poll.updated_at ?? null,
     repeatInterval: poll.repeat_interval ?? null,
     // Only meaningful for a repeating poll; round 1 of a one-off says nothing.
     round: poll.series_id ? poll.round : null,

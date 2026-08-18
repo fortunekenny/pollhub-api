@@ -225,7 +225,7 @@ export async function listByOwner({ ownerId, status, limit, offset }, client) {
   const { rows } = await db(client).query(
     `SELECT p.id, p.type, p.title, p.slug, p.visibility, p.status, p.results_mode,
             p.response_count, p.opens_at, p.closes_at, p.created_at,
-            p.published_at, p.repeat_interval, p.series_id, p.round,
+            p.published_at, p.repeat_interval, p.series_id, p.round, p.updated_at,
             ${NEXT_OPENS_AT}
        FROM polls p
       WHERE p.owner_id = $1
