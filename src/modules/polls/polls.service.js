@@ -151,16 +151,19 @@ export async function archive(pollId, userId) {
  * delete a closed poll, since moderation sometimes has to remove something
  * without waiting for its owner to archive it.
  *
- * A draft is not deletable by either. That is a deliberate reading of the
- * rule rather than an oversight: archive it first, which costs one click and
- * keeps a single path to deletion instead of two.
+ * A draft is deletable by both. It was never published, so there is nothing
+ * to lose and nobody to surprise — making its owner archive it first would be
+ * ceremony over an empty poll.
  *
  * The rows go via ON DELETE CASCADE — responses, answers, tallies, invite
  * codes and reports all follow the poll. Images are cleaned up afterwards and
  * best-effort: an orphaned Cloudinary asset is a smaller problem than a poll
  * that refuses to delete because an unrelated service is down.
  */
-const DELETABLE_STATUSES = { admin: ['closed', 'archived'], creator: ['archived'] };
+const DELETABLE_STATUSES = {
+  admin: ['draft', 'closed', 'archived'],
+  creator: ['draft', 'archived'],
+};
 
 export async function remove(pollId, user) {
   const poll = await repo.findById(pollId);
@@ -173,8 +176,8 @@ export async function remove(pollId, user) {
   if (!allowed.includes(poll.status)) {
     throw conflict(
       isAdmin
-        ? 'Only closed or archived polls can be deleted'
-        : 'Only archived polls can be deleted — archive it first',
+        ? 'Only draft, closed or archived polls can be deleted'
+        : 'A published poll must be closed and archived before it can be deleted',
       'not_deletable',
     );
   }
