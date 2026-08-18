@@ -53,8 +53,17 @@ export function createApp() {
 
   const api = express.Router();
   api.use('/auth', authRoutes);
-  api.use('/polls', pollRoutes);
+
+  // Order matters, and not cosmetically. pollRoutes calls `use(authenticate)`
+  // partway down to gate its creator routes, and router-level middleware runs
+  // for every request that enters the router — including paths it has no route
+  // for. Mounted first, it would 401 a respondent submitting a vote before
+  // responseRoutes was ever reached, which is exactly the login wall the
+  // respondent path exists to avoid. Respondent routes therefore go first;
+  // their paths (/:slug/responses, /:slug/status) cannot shadow anything in
+  // pollRoutes.
   api.use('/polls', responseRoutes); // /polls/:slug/responses
+  api.use('/polls', pollRoutes);
   api.use('/polls', inviteRoutes); // /polls/:id/invites
   api.use('/polls', analyticsRoutes); // /polls/:id/analytics
   api.use('/uploads', uploadRoutes);
