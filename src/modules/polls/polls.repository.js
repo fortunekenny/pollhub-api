@@ -94,6 +94,83 @@ export async function findFullBySlug(slug, client) {
   return rows[0] ?? null;
 }
 
+/**
+ * Resolve a respondent link, which may name a round or a whole series.
+ *
+ * An exact slug always wins, so a link to a specific round keeps pointing at
+ * that round and its results. Only when nothing matches exactly is the value
+ * treated as a series slug, and then the round chosen is the one a respondent
+ * would expect: the open one, else the next to open, else the most recent.
+ */
+export async function resolveRespondentSlug(slug, client) {
+  const exact = await findFullBySlug(slug, client);
+  if (exact) return exact;
+
+  const { rows } = await db(client).query(
+    `SELECT slug FROM polls
+      WHERE series_slug = $1
+        AND status <> 'archived'
+      ORDER BY
+        -- open now
+        (status = 'published'
+           AND (opens_at IS NULL OR opens_at <= now())
+           AND (closes_at IS NULL OR closes_at > now())) DESC,
+        -- else the one waiting to open, soonest first
+        (status = 'published' AND opens_at > now()) DESC,
+        round DESC
+      LIMIT 1`,
+    [slug],
+  );
+  return rows[0] ? findFullBySlug(rows[0].slug, client) : null;
+}
+
+/** Is this slug already taken as either a round slug or a series slug? */
+export async function slugTaken(slug, client) {
+  const { rows } = await db(client).query(
+    'SELECT 1 FROM polls WHERE slug = $1 OR series_slug = $1 LIMIT 1',
+    [slug],
+  );
+  return rows.length > 0;
+}
+
+export async function startSeries({ pollId, seriesSlug }, client) {
+  const { rows } = await db(client).query(
+    `UPDATE polls
+        SET series_id = id, series_slug = $2, round = 1
+      WHERE id = $1
+  RETURNING *`,
+    [pollId, seriesSlug],
+  );
+  return rows[0];
+}
+
+export async function joinSeries({ pollId, seriesId, seriesSlug, round, repeatInterval }, client) {
+  const { rows } = await db(client).query(
+    `UPDATE polls
+        SET series_id = $2, series_slug = $3, round = $4, repeat_interval = $5
+      WHERE id = $1
+  RETURNING *`,
+    [pollId, seriesId, seriesSlug, round, repeatInterval],
+  );
+  return rows[0];
+}
+
+export async function setRepeatInterval(id, interval, client) {
+  const { rows } = await db(client).query(
+    'UPDATE polls SET repeat_interval = $2, updated_at = now() WHERE id = $1 RETURNING *',
+    [id, interval],
+  );
+  return rows[0];
+}
+
+export async function latestRound(seriesId, client) {
+  const { rows } = await db(client).query(
+    'SELECT * FROM polls WHERE series_id = $1 ORDER BY round DESC LIMIT 1',
+    [seriesId],
+  );
+  return rows[0] ?? null;
+}
+
 export async function listByOwner({ ownerId, status, limit, offset }, client) {
   const { rows } = await db(client).query(
     `SELECT id, type, title, slug, visibility, status, results_mode,

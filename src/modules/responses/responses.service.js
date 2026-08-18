@@ -21,7 +21,9 @@ import { publishTallyDelta } from '../../realtime/ws-server.js';
  * transaction opens, so a rejected vote never holds a tally row lock.
  */
 export async function submit({ slug, input, context }) {
-  const poll = await pollRepo.findFullBySlug(slug);
+  // Same resolution the respondent page used, so a vote cast through a series
+  // link lands in whichever round that link opened.
+  const poll = await pollRepo.resolveRespondentSlug(slug);
   if (!poll) throw badRequest('Poll not found');
 
   assertAcceptingResponses(poll);

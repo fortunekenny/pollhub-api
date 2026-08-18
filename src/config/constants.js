@@ -21,6 +21,9 @@ export const CHOICE_TYPES = ['single_choice', 'multi_choice', 'yes_no', 'ranking
 
 export const ROLES = ['creator', 'admin'];
 
+/** How often a repeating poll opens a fresh round. Null means it does not. */
+export const REPEAT_INTERVALS = ['daily', 'weekly', 'monthly'];
+
 export const NOTIFICATION_EVENTS = [
   'poll_closing',
   'response_milestone',

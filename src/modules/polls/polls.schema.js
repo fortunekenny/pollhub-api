@@ -7,6 +7,7 @@ import {
   RESULTS_MODES,
   QUESTION_TYPES,
   CHOICE_TYPES,
+  REPEAT_INTERVALS,
 } from '../../config/constants.js';
 
 const optionSchema = z
@@ -58,6 +59,8 @@ export const createPollSchema = z
     coverPublicId: z.string().max(300).optional(),
     opensAt: z.coerce.date().optional(),
     closesAt: z.coerce.date().optional(),
+    // Opens a fresh round on the same permanent link each time this one ends.
+    repeatInterval: z.enum(REPEAT_INTERVALS).nullish(),
     questions: z.array(questionSchema).min(1).max(50),
   })
   .superRefine((p, ctx) => {
@@ -66,6 +69,16 @@ export const createPollSchema = z
         code: z.ZodIssueCode.custom,
         message: 'A Quick Vote has exactly one question — use type "survey" for more',
         path: ['questions'],
+      });
+    }
+    // Without an end there is nothing to repeat from: the next round opens an
+    // interval after this one, and a poll closed by hand at an arbitrary
+    // moment would put the whole series on a schedule nobody chose.
+    if (p.repeatInterval && !p.closesAt) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'A repeating poll needs a closing time — that is the length of each round',
+        path: ['closesAt'],
       });
     }
     if (p.opensAt && p.closesAt && p.closesAt <= p.opensAt) {

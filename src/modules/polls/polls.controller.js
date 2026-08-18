@@ -4,7 +4,15 @@ import { qrSvg } from '../../lib/qr.js';
 import { gone, notFound } from '../../lib/errors.js';
 
 export async function create(req, res) {
-  const poll = await service.createPoll(req.user.id, req.body);
+  let poll = await service.createPoll(req.user.id, req.body);
+
+  // A repeating poll needs its permanent link allocated up front, so the
+  // creator can share it before the first round has even ended.
+  if (req.body.repeatInterval) {
+    poll = await service.ensureSeries(poll);
+    poll = await repo.setRepeatInterval(poll.id, req.body.repeatInterval);
+  }
+
   res.status(201).json({ poll: service.presentPoll(poll, { includeOwnerFields: true }) });
 }
 
@@ -37,7 +45,8 @@ export async function getOne(req, res) {
  * that decides visibility.
  */
 export async function getBySlug(req, res) {
-  const poll = await repo.findFullBySlug(req.validatedParams.slug);
+  // Resolves a round slug or a series slug — see repo.resolveRespondentSlug.
+  const poll = await repo.resolveRespondentSlug(req.validatedParams.slug);
   if (!poll) throw notFound('Poll not found');
 
   if (poll.status === 'draft') throw notFound('Poll not found');

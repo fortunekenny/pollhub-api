@@ -62,6 +62,106 @@ async function insertWithUniqueSlug(ownerId, input, client, attempts = 5) {
   throw conflict('Could not allocate a unique poll link, please retry');
 }
 
+// ------------------------------------------------------------- repeating ----
+
+const INTERVAL_MS = {
+  daily: 86_400_000,
+  weekly: 7 * 86_400_000,
+};
+
+/** Months are not a fixed number of milliseconds, so step the calendar. */
+function addInterval(date, interval) {
+  if (interval === 'monthly') {
+    const next = new Date(date);
+    next.setMonth(next.getMonth() + 1);
+    return next;
+  }
+  return new Date(date.getTime() + INTERVAL_MS[interval]);
+}
+
+/**
+ * Give a poll the stable link its future rounds will share.
+ *
+ * Retried on collision for the same reason slug allocation is: the series slug
+ * must not match any existing round slug or series slug, or a respondent link
+ * becomes ambiguous.
+ */
+export async function ensureSeries(poll) {
+  if (poll.series_id) return poll;
+
+  for (let i = 0; i < 5; i += 1) {
+    const candidate = generateSlug();
+    if (await repo.slugTaken(candidate)) continue;
+    return repo.startSeries({ pollId: poll.id, seriesSlug: candidate });
+  }
+  throw conflict('Could not allocate a series link, please retry');
+}
+
+/**
+ * Open the next round of a repeating poll.
+ *
+ * The new round inherits the previous round's schedule shape rather than
+ * simply starting now: its opening is one interval after the last opening, and
+ * it stays open for however long the last round did. That is what makes "open
+ * for a day, every week" expressible — anchoring to `now` instead would let
+ * the series drift a little further from its slot on every roll.
+ *
+ * Questions and settings are copied; responses and tallies never are. The
+ * round is published immediately so the series link keeps resolving to
+ * something, even when the opening time is still ahead.
+ */
+export async function rollSeries(closedPoll) {
+  if (!closedPoll.repeat_interval || !closedPoll.series_id) return null;
+
+  const questions = await repo.questionsWithOptions(closedPoll.id);
+
+  const prevOpen = new Date(
+    closedPoll.opens_at ?? closedPoll.published_at ?? closedPoll.created_at,
+  );
+  const prevClose = closedPoll.closes_at ? new Date(closedPoll.closes_at) : null;
+  const durationMs = prevClose ? prevClose.getTime() - prevOpen.getTime() : null;
+
+  let opensAt = addInterval(prevOpen, closedPoll.repeat_interval);
+  // A series left closed for a while would otherwise open its next round in
+  // the past and be closed again on the very next tick. Walk forward instead.
+  while (opensAt.getTime() + (durationMs ?? 0) <= Date.now()) {
+    opensAt = addInterval(opensAt, closedPoll.repeat_interval);
+  }
+
+  const created = await createPoll(closedPoll.owner_id, {
+    type: closedPoll.type,
+    title: closedPoll.title,
+    description: closedPoll.description ?? undefined,
+    visibility: closedPoll.visibility,
+    identityMode: closedPoll.identity_mode,
+    dedupMode: closedPoll.dedup_mode,
+    resultsMode: closedPoll.results_mode,
+    coverPublicId: closedPoll.cover_public_id ?? undefined,
+    opensAt,
+    closesAt: durationMs ? new Date(opensAt.getTime() + durationMs) : null,
+    questions: questions.map((q) => ({
+      type: q.type,
+      prompt: q.prompt,
+      required: q.required,
+      config: q.config,
+      options: (q.options ?? []).map((o) => ({
+        label: o.label ?? undefined,
+        imagePublicId: o.imagePublicId ?? undefined,
+      })),
+    })),
+  });
+
+  const next = await repo.joinSeries({
+    pollId: created.id,
+    seriesId: closedPoll.series_id,
+    seriesSlug: closedPoll.series_slug,
+    round: closedPoll.round + 1,
+    repeatInterval: closedPoll.repeat_interval,
+  });
+
+  return repo.setStatus(next.id, 'published');
+}
+
 export async function getOwned(pollId, userId) {
   const poll = await repo.findById(pollId);
   if (!poll) throw notFound('Poll not found');
@@ -115,6 +215,14 @@ export async function close(pollId, userId) {
   // No double-send risk: closeDuePolls only ever selects `published` rows, and
   // this one is already `closed` by the time that job could see it.
   void notifyResultsReady(closed);
+
+  // Closing a round early still advances the series — that is what repeating
+  // means. To stop it, set the poll not to repeat before closing, or archive.
+  if (closed.repeat_interval) {
+    rollSeries(closed).catch((err) =>
+      logger.error('series roll failed', { err: err.message, pollId: closed.id }),
+    );
+  }
 
   return closed;
 }
@@ -199,7 +307,10 @@ export async function remove(pollId, user) {
 
 export function shareLinks(poll) {
   return {
-    url: `${env.PUBLIC_POLL_BASE_URL}/${poll.slug}`,
+    // A repeating poll shares its series link, which follows the rounds. The
+    // round's own slug still works and still shows that round's results — it
+    // is just not the one to hand out.
+    url: `${env.PUBLIC_POLL_BASE_URL}/${poll.series_slug ?? poll.slug}`,
     qrSvg: `${env.API_PUBLIC_URL}/api/v1/polls/${poll.id}/qr.svg`,
     shareCard: shareCardUrl(poll.cover_public_id, poll.title),
   };
@@ -236,6 +347,9 @@ export function presentPoll(poll, { includeOwnerFields = false } = {}) {
     coverUrl: imageUrl(poll.cover_public_id, { width: 1200 }),
     opensAt: poll.opens_at,
     closesAt: poll.closes_at,
+    repeatInterval: poll.repeat_interval ?? null,
+    // Only meaningful for a repeating poll; round 1 of a one-off says nothing.
+    round: poll.series_id ? poll.round : null,
     responseCount: poll.response_count,
     createdAt: poll.created_at,
     ...(includeOwnerFields ? { ownerId: poll.owner_id, share: shareLinks(poll) } : {}),
