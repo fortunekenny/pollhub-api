@@ -82,7 +82,11 @@ export async function submit({ slug, input, context }) {
     // Post-commit only. Updating the mirror inside the transaction would
     // broadcast a vote that a rollback then erased.
     const delta = applyDelta(poll.id, optionIds);
-    publishTallyDelta(poll.id, delta ?? Object.fromEntries(counts.map((c) => [c.option_id, c.count])));
+    publishTallyDelta(
+      poll.id,
+      delta ?? Object.fromEntries(counts.map((c) => [c.option_id, c.count])),
+      responseCount,
+    );
 
     // Deliberately not awaited: the response is committed and the respondent
     // is owed a fast 201, not a wait on Brevo and FCM. Any failure inside is

@@ -65,7 +65,7 @@ async function handleSubscribe(socket, msg) {
   // Results visibility is enforced here, not just in the REST layer —
   // otherwise a creator-only poll leaks its live tally over the socket.
   const poll = await queryOne(
-    'SELECT id, status, results_mode FROM polls WHERE id = $1',
+    'SELECT id, status, results_mode, response_count FROM polls WHERE id = $1',
     [pollId],
   );
   if (!poll) return send(socket, { type: 'error', message: 'Poll not found' });
@@ -78,17 +78,31 @@ async function handleSubscribe(socket, msg) {
   }
 
   subscribe(socket, pollId);
-  send(socket, { type: 'snapshot', pollId, tallies: await mirror.snapshot(pollId) });
+  send(socket, {
+    type: 'snapshot',
+    pollId,
+    tallies: await mirror.snapshot(pollId),
+    // Seeds the total so a page that connects mid-poll is not left showing
+    // whatever count its initial fetch happened to catch.
+    responseCount: poll.response_count,
+  });
 }
 
 function send(socket, payload) {
   if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(payload));
 }
 
-/** Push a committed tally delta to everyone watching the poll. */
-export function publishTallyDelta(pollId, delta) {
+/**
+ * Push a committed tally delta to everyone watching the poll.
+ *
+ * responseCount rides along because it is the one number a watcher can see
+ * beside the bars, and deriving it from the tallies is wrong for a survey —
+ * one response answers several questions, so summing option counts would
+ * overcount it.
+ */
+export function publishTallyDelta(pollId, delta, responseCount) {
   if (!delta) return 0;
-  return broadcast(pollId, { type: 'tally', pollId, tallies: delta });
+  return broadcast(pollId, { type: 'tally', pollId, tallies: delta, responseCount });
 }
 
 export function publishPollStatus(pollId, status) {
