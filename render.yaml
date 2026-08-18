@@ -119,13 +119,25 @@ services:
         sync: false
 
       # --- email (Brevo) --------------------------------------------------
-      # MAIL_FROM_EMAIL must be a sender Brevo has verified; an unverified
-      # address is rejected at send time, not at boot, so a bad value here
-      # surfaces as signups that never receive a verification link.
+      # MAIL_FROM_EMAIL must be an address verified under Brevo -> Senders.
+      # An unverified one is rejected at send time rather than at boot, and
+      # integrations/brevo.js logs that rejection instead of raising it — so
+      # the symptom is notifications and verification links that never arrive,
+      # with nothing failing anywhere to point at the cause.
+      #
+      # Verified senders on this account: pollshubsite@gmail.com (id 2) and
+      # gbephraim@gmail.com. Changing this to anything else silently stops all
+      # outgoing mail.
+      #
+      # Recipients see MAIL_FROM_NAME beside a brevosend.com relay address,
+      # not the address below: Brevo cannot sign mail as gmail.com, so it
+      # rewrites the envelope domain. Authenticating a domain we own is the
+      # only way to send as ourselves — and the only real fix for spam
+      # placement.
       - key: BREVO_API_KEY
         sync: false
       - key: MAIL_FROM_EMAIL
-        value: gbephraim@gmail.com
+        value: pollshubsite@gmail.com
       - key: MAIL_FROM_NAME
         value: PollHub
 
